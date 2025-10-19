@@ -190,7 +190,7 @@ def generate_navigation(current_lang='ko'):
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/energytrading?lang={current_lang}">
+                            <a class="nav-link" href="/trading?lang={current_lang}">
                                 <i class="fas fa-exchange-alt"></i> 전력/탄소 거래
                             </a>
                         </li>
@@ -415,6 +415,24 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                             </p>
                             <a href="/data-explorer?lang={lang}" class="btn btn-secondary btn-sm w-100">
                                 <i class="fas fa-arrow-right"></i> 데이터 탐색
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Energy Trading 카드 -->
+                <div class="col-md-2 mb-4">
+                    <div class="card energy-card h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-exchange-alt text-success" style="font-size: 2.5rem;"></i>
+                            </div>
+                            <h6 class="card-title">전력/탄소 거래</h6>
+                            <p class="card-text small text-muted mb-3">
+                                P2P 전력 거래 & 탄소 크레딧 시스템
+                            </p>
+                            <a href="/trading?lang={lang}" class="btn btn-success btn-sm w-100">
+                                <i class="fas fa-arrow-right"></i> 전력/탄소 거래
                             </a>
                         </div>
                     </div>
