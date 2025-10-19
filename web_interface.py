@@ -2722,6 +2722,78 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                 </div>
             </div>
 
+            <!-- 거래 플랫폼 전용 섹션 -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card energy-card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-exchange-alt"></i> 전력/탄소 거래 플랫폼</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-bolt text-warning" style="font-size: 3rem;"></i>
+                                        <h6 class="mt-2">P2P 전력 거래</h6>
+                                        <p class="small text-muted">실시간 전력 거래 마켓플레이스</p>
+                                        <div class="mb-2">
+                                            <small><strong>총 거래량:</strong> ₩89.2M</small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <small><strong>활성 거래자:</strong> 156명</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <small><strong>거래 건수:</strong> 1,247건</small>
+                                        </div>
+                                        <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-arrow-right"></i> 거래 플랫폼 열기
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-leaf text-success" style="font-size: 3rem;"></i>
+                                        <h6 class="mt-2">탄소 크레딧 거래</h6>
+                                        <p class="small text-muted">환경 친화적 크레딧 거래</p>
+                                        <div class="mb-2">
+                                            <small><strong>총 보유량:</strong> 7,302톤</small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <small><strong>현재 가격:</strong> ₩45,000/톤</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <small><strong>시장 가치:</strong> ₩328.6M</small>
+                                        </div>
+                                        <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-arrow-right"></i> 탄소 시장 열기
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-robot text-info" style="font-size: 3rem;"></i>
+                                        <h6 class="mt-2">AI 최적화</h6>
+                                        <p class="small text-muted">수익 최적화 AI 엔진</p>
+                                        <div class="mb-2">
+                                            <small><strong>최적화 효과:</strong> +11%</small>
+                                        </div>
+                                        <div class="mb-2">
+                                            <small><strong>예상 절감:</strong> ₩66.8M</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <small><strong>AI 정확도:</strong> 94.2%</small>
+                                        </div>
+                                        <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-arrow-right"></i> AI 최적화 실행
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 수익 최적화 AI 대시보드 -->
             <div class="row">
                 <div class="col-12">
