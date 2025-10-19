@@ -2421,31 +2421,31 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                     <i class="fas fa-globe-americas"></i> 글로벌 에너지 프로슈머 플랫폼
                 </h1>
                 <p class="lead mb-4">Global Energy Prosumer Platform with P2P Trading & Carbon Credit System</p>
-                <div class="row">
-                    <div class="col-md-3">
+                        <div class="row">
+                            <div class="col-md-3">
                         <div class="kpi-card">
                             <div class="kpi-value" id="totalSites">4</div>
                             <div class="kpi-label">활성 Demo Sites</div>
                         </div>
-                    </div>
-                    <div class="col-md-3">
+                            </div>
+                            <div class="col-md-3">
                         <div class="kpi-card">
                             <div class="kpi-value" id="totalDevices">1,248</div>
                             <div class="kpi-label">등록 기기</div>
                         </div>
-                    </div>
-                    <div class="col-md-3">
+                            </div>
+                            <div class="col-md-3">
                         <div class="kpi-card">
                             <div class="kpi-value" id="dailyRevenue">₩2.5M</div>
                             <div class="kpi-label">오늘의 거래 수익</div>
                         </div>
-                    </div>
-                    <div class="col-md-3">
+                            </div>
+                            <div class="col-md-3">
                         <div class="kpi-card">
                             <div class="kpi-value" id="carbonCredits">₩896K</div>
                             <div class="kpi-label">탄소 크레딧 수익</div>
+                            </div>
                         </div>
-                    </div>
                 </div>
             </div>
 
@@ -2460,36 +2460,36 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
             </div>
 
             <!-- 4개 Demo Sites 상세 정보 -->
-            <div class="row">
-                <div class="col-md-6">
+                        <div class="row">
+                            <div class="col-md-6">
                     <div class="site-card">
                         <div class="site-header site-finland">
                             <h5><i class="fas fa-university"></i> 🇫🇮 Finland - Oulu University</h5>
                             <p class="mb-0">극한 기후, 스마트 빌딩 | 312개 기기</p>
-                        </div>
+                                </div>
                         <div class="site-metrics">
                             <div class="row">
                                 <div class="col-4">
                                     <div class="metric-item">
                                         <div class="metric-value">92.3%</div>
                                         <div class="metric-label">에너지 효율</div>
-                                    </div>
+                                </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="metric-item">
                                         <div class="metric-value">22%</div>
                                         <div class="metric-label">절약률</div>
-                                    </div>
                                 </div>
+                            </div>
                                 <div class="col-4">
                                     <div class="metric-item">
                                         <div class="metric-value">
                                             <span class="status-indicator status-online"></span>Online
-                                        </div>
-                                        <div class="metric-label">연결 상태</div>
-                                    </div>
-                                </div>
                             </div>
+                                        <div class="metric-label">연결 상태</div>
+                        </div>
+                    </div>
+                </div>
                             <div class="mt-3">
                                 <small class="text-muted">연간 비용 절감: ₩318M | ROI: 20개월</small>
                             </div>
@@ -2503,7 +2503,7 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                             <p class="mb-0">Living Lab, 지속가능성 | 428개 기기</p>
                         </div>
                         <div class="site-metrics">
-                            <div class="row">
+                        <div class="row">
                                 <div class="col-4">
                                     <div class="metric-item">
                                         <div class="metric-value">94.8%</div>
@@ -2531,19 +2531,19 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
+                            <div class="col-md-6">
                     <div class="site-card">
                         <div class="site-header site-romania">
                             <h5><i class="fas fa-microchip"></i> 🇷🇴 Romania - BEIA</h5>
                             <p class="mb-0">IoT, 스마트 시스템 | 256개 기기</p>
-                        </div>
+                                </div>
                         <div class="site-metrics">
                             <div class="row">
                                 <div class="col-4">
                                     <div class="metric-item">
                                         <div class="metric-value">89.5%</div>
                                         <div class="metric-label">에너지 효율</div>
-                                    </div>
+                                </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="metric-item">
@@ -2564,14 +2564,14 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                                 <small class="text-muted">연간 비용 절감: ₩257M | ROI: 18개월</small>
                             </div>
                         </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
                     <div class="site-card">
                         <div class="site-header site-greece">
                             <h5><i class="fas fa-building"></i> 🇬🇷 Greece - Triaena/OTE</h5>
                             <p class="mb-0">상업 빌딩, 통신 인프라 | 252개 기기</p>
-                        </div>
+                            </div>
                         <div class="site-metrics">
                             <div class="row">
                                 <div class="col-4">
@@ -2619,94 +2619,94 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                                                 <div class="trading-item">
                                                     <span>🇫🇮 Finland</span>
                                                     <span>45 kW @ ₩185/kWh <span class="price-trend price-up">↗ +2.3%</span></span>
-                                                </div>
+                                </div>
                                                 <div class="trading-item">
                                                     <span>🇸🇪 Sweden</span>
                                                     <span>32 kW @ ₩192/kWh <span class="price-trend price-up">↗ +1.8%</span></span>
-                                                </div>
+                                </div>
                                                 <div class="trading-item">
                                                     <span>🇷🇴 Romania</span>
                                                     <span>28 kW @ ₩178/kWh <span class="price-trend price-down">↘ -0.5%</span></span>
-                                                </div>
+                                </div>
                                                 <div class="trading-item">
                                                     <span>🇬🇷 Greece</span>
                                                     <span>38 kW @ ₩201/kWh <span class="price-trend price-up">↗ +3.1%</span></span>
-                                                </div>
-                                            </div>
-                                        </div>
+                            </div>
+                                </div>
+                                </div>
                                         <div class="col-6">
                                             <h6>구매 호가</h6>
                                             <div class="trading-table">
                                                 <div class="trading-item">
                                                     <span>🏭 Industrial Co.</span>
                                                     <span>120 kW @ ₩200/kWh</span>
-                                                </div>
+                                </div>
                                                 <div class="trading-item">
                                                     <span>🏢 Office Complex</span>
                                                     <span>85 kW @ ₩195/kWh</span>
-                                                </div>
+                            </div>
                                                 <div class="trading-item">
                                                     <span>🏪 Retail Chain</span>
                                                     <span>65 kW @ ₩190/kWh</span>
-                                                </div>
+                                </div>
                                                 <div class="trading-item">
                                                     <span>🏥 Hospital</span>
                                                     <span>45 kW @ ₩205/kWh</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                </div>
+                                </div>
+                            </div>
+                        </div>
                                     <div class="text-center mt-3">
                                         <button class="btn btn-trading" onclick="openP2PMarket()">
                                             <i class="fas fa-chart-line"></i> P2P 마켓 열기
                                         </button>
-                                    </div>
-                                </div>
-                            </div>
+                    </div>
+                </div>
+            </div>
                             <div class="col-md-6">
                                 <div class="carbon-card">
                                     <h6><i class="fas fa-leaf"></i> 탄소 크레딧 거래</h6>
-                                    <div class="row">
+            <div class="row">
                                         <div class="col-6">
                                             <h6>보유 크레딧</h6>
                                             <div class="trading-table">
                                                 <div class="trading-item">
                                                     <span>🇫🇮 Finland</span>
                                                     <span>652톤 (₩29.3M)</span>
-                                                </div>
+                                    </div>
                                                 <div class="trading-item">
                                                     <span>🇸🇪 Sweden</span>
                                                     <span>1,200톤 (₩54.0M)</span>
-                                                </div>
+                                            </div>
                                                 <div class="trading-item">
                                                     <span>🇷🇴 Romania</span>
                                                     <span>450톤 (₩20.3M)</span>
-                                                </div>
+                                            </div>
                                                 <div class="trading-item">
                                                     <span>🇬🇷 Greece</span>
                                                     <span>5,000톤 (₩225.0M)</span>
-                                                </div>
                                             </div>
                                         </div>
+                                    </div>
                                         <div class="col-6">
                                             <h6>시장 정보</h6>
                                             <div class="trading-table">
                                                 <div class="trading-item">
                                                     <span>현재 가격</span>
                                                     <span>₩45,000/톤 <span class="price-trend price-up">↗ +2.3%</span></span>
-                                                </div>
+                                </div>
                                                 <div class="trading-item">
                                                     <span>24h 변동</span>
                                                     <span>+₩1,050/톤</span>
-                                                </div>
+                            </div>
                                                 <div class="trading-item">
                                                     <span>월간 거래량</span>
                                                     <span>1,847톤</span>
-                                                </div>
+                                    </div>
                                                 <div class="trading-item">
                                                     <span>시장 캡</span>
                                                     <span>₩328.6M</span>
-                                                </div>
+                                            </div>
                                             </div>
                                         </div>
                                     </div>
@@ -2716,11 +2716,11 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                                         </button>
                                     </div>
                                 </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- 거래 플랫폼 전용 섹션 -->
             <div class="row mt-4">
@@ -2728,8 +2728,8 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                     <div class="card energy-card">
                         <div class="card-header bg-success text-white">
                             <h5 class="mb-0"><i class="fas fa-exchange-alt"></i> 전력/탄소 거래 플랫폼</h5>
-                        </div>
-                        <div class="card-body">
+                                    </div>
+                                    <div class="card-body">
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="text-center mb-3">
@@ -2738,18 +2738,18 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                                         <p class="small text-muted">실시간 전력 거래 마켓플레이스</p>
                                         <div class="mb-2">
                                             <small><strong>총 거래량:</strong> ₩89.2M</small>
-                                        </div>
+                                            </div>
                                         <div class="mb-2">
                                             <small><strong>활성 거래자:</strong> 156명</small>
-                                        </div>
+                                            </div>
                                         <div class="mb-3">
                                             <small><strong>거래 건수:</strong> 1,247건</small>
-                                        </div>
+                                            </div>
                                         <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
                                             <i class="fas fa-arrow-right"></i> 거래 플랫폼 열기
                                         </a>
+                                        </div>
                                     </div>
-                                </div>
                                 <div class="col-md-4">
                                     <div class="text-center mb-3">
                                         <i class="fas fa-leaf text-success" style="font-size: 3rem;"></i>
@@ -2757,18 +2757,18 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                                         <p class="small text-muted">환경 친화적 크레딧 거래</p>
                                         <div class="mb-2">
                                             <small><strong>총 보유량:</strong> 7,302톤</small>
-                                        </div>
+                                </div>
                                         <div class="mb-2">
                                             <small><strong>현재 가격:</strong> ₩45,000/톤</small>
-                                        </div>
+                            </div>
                                         <div class="mb-3">
                                             <small><strong>시장 가치:</strong> ₩328.6M</small>
-                                        </div>
+                                    </div>
                                         <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
                                             <i class="fas fa-arrow-right"></i> 탄소 시장 열기
                                         </a>
-                                    </div>
-                                </div>
+                                            </div>
+                                            </div>
                                 <div class="col-md-4">
                                     <div class="text-center mb-3">
                                         <i class="fas fa-robot text-info" style="font-size: 3rem;"></i>
@@ -2776,7 +2776,7 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                                         <p class="small text-muted">수익 최적화 AI 엔진</p>
                                         <div class="mb-2">
                                             <small><strong>최적화 효과:</strong> +11%</small>
-                                        </div>
+                                            </div>
                                         <div class="mb-2">
                                             <small><strong>예상 절감:</strong> ₩66.8M</small>
                                         </div>
@@ -2785,6 +2785,97 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                                         </div>
                                         <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
                                             <i class="fas fa-arrow-right"></i> AI 최적화 실행
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+            <!-- 전력/탄소 거래 플랫폼 (배포용) -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                    <div class="card energy-card">
+                        <div class="card-header bg-success text-white">
+                            <h4 class="mb-0"><i class="fas fa-exchange-alt"></i> 전력/탄소 거래 플랫폼</h4>
+                                    </div>
+                                    <div class="card-body">
+                            <div class="row">
+                                            <div class="col-md-3">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-bolt text-warning" style="font-size: 2.5rem;"></i>
+                                        <h6 class="mt-2">P2P 전력 거래</h6>
+                                        <p class="small text-muted">실시간 전력 거래 마켓플레이스</p>
+                                        <div class="mb-1">
+                                            <small><strong>거래량:</strong> ₩89.2M</small>
+                                        </div>
+                                        <div class="mb-1">
+                                            <small><strong>거래자:</strong> 156명</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <small><strong>거래건수:</strong> 1,247건</small>
+                                        </div>
+                                        <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-arrow-right"></i> 거래 플랫폼
+                                        </a>
+                                    </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-leaf text-success" style="font-size: 2.5rem;"></i>
+                                        <h6 class="mt-2">탄소 크레딧</h6>
+                                        <p class="small text-muted">환경 친화적 크레딧 거래</p>
+                                        <div class="mb-1">
+                                            <small><strong>보유량:</strong> 7,302톤</small>
+                                        </div>
+                                        <div class="mb-1">
+                                            <small><strong>가격:</strong> ₩45,000/톤</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <small><strong>시장가치:</strong> ₩328.6M</small>
+                                        </div>
+                                        <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-arrow-right"></i> 탄소 시장
+                                        </a>
+                                    </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-robot text-info" style="font-size: 2.5rem;"></i>
+                                        <h6 class="mt-2">AI 최적화</h6>
+                                        <p class="small text-muted">수익 최적화 AI 엔진</p>
+                                        <div class="mb-1">
+                                            <small><strong>효과:</strong> +11%</small>
+                                        </div>
+                                        <div class="mb-1">
+                                            <small><strong>절감:</strong> ₩66.8M</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <small><strong>정확도:</strong> 94.2%</small>
+                                        </div>
+                                        <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-arrow-right"></i> AI 최적화
+                                        </a>
+                                    </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-chart-line text-primary" style="font-size: 2.5rem;"></i>
+                                        <h6 class="mt-2">거래 분석</h6>
+                                        <p class="small text-muted">실시간 거래 통계 및 분석</p>
+                                        <div class="mb-1">
+                                            <small><strong>24h 거래:</strong> ₩12.3M</small>
+                                        </div>
+                                        <div class="mb-1">
+                                            <small><strong>평균 가격:</strong> ₩189/kWh</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <small><strong>성장률:</strong> +15.3%</small>
+                                        </div>
+                                        <a href="/trading?lang={lang}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-arrow-right"></i> 거래 분석
                                         </a>
                                     </div>
                                 </div>
@@ -2848,13 +2939,13 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                             <div class="col-6">
                                 <div class="metric-value text-primary">₩2.5M</div>
                                 <div class="metric-label">거래 수익</div>
-                            </div>
-                        </div>
-                        <div class="mt-3">
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
                             <canvas id="dailyPerformanceChart" class="chart-container"></canvas>
-                        </div>
-                    </div>
-                </div>
+                                        </div>
+                                    </div>
+                                </div>
                 <div class="col-md-4">
                     <div class="platform-card">
                         <h5><i class="fas fa-globe"></i> 글로벌 통계</h5>
@@ -3162,7 +3253,7 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
             function openCarbonMarket() {{
                 alert('탄소 크레딧 거래 시장이 곧 열립니다!\\n\\n• 크레딧 발행 및 추적\\n• 검증 및 인증 시스템\\n• 블록체인 기록');
             }}
-            
+
             // 페이지 로드 시 초기화
             document.addEventListener('DOMContentLoaded', function() {{
                 initGlobalMap();
@@ -5695,7 +5786,7 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                 <div class="col-lg-8">
                     <div class="monitoring-card">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5><i class="fas fa-microchip"></i> 전자기기별 에너지 수요 분석</h5>
+                        <h5><i class="fas fa-microchip"></i> 전자기기별 에너지 수요 분석</h5>
                             <div class="btn-group btn-group-sm" role="group">
                                 <button type="button" class="btn btn-outline-primary active" onclick="changeDeviceView('chart')">차트</button>
                                 <button type="button" class="btn btn-outline-primary" onclick="changeDeviceView('table')">테이블</button>
@@ -5756,7 +5847,7 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                 <div class="col-lg-8">
                     <div class="monitoring-card">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5><i class="fas fa-crystal-ball"></i> 에너지 수요 예측 분석</h5>
+                        <h5><i class="fas fa-crystal-ball"></i> 에너지 수요 예측 분석</h5>
                             <div class="btn-group btn-group-sm" role="group">
                                 <button type="button" class="btn btn-outline-primary active" onclick="changePredictionRange('24h')">24시간</button>
                                 <button type="button" class="btn btn-outline-primary" onclick="changePredictionRange('7d')">7일</button>
@@ -5765,7 +5856,7 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                         </div>
                         <canvas id="predictionChart" class="chart-container" style="height: 350px;"></canvas>
                         <div class="mt-3">
-                            <div class="row">
+                        <div class="row">
                                 <div class="col-md-4">
                                     <div class="prediction-card">
                                         <h6 class="text-primary">단기 예측 (1-6시간)</h6>
@@ -5851,7 +5942,7 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                         <div id="energyFlowDiagram" class="energy-flow-container">
                             <div class="row">
                                 <!-- 공급원 -->
-                                <div class="col-md-3">
+                            <div class="col-md-3">
                                     <div class="supply-section">
                                         <h6 class="text-center mb-3">⚡ 공급원</h6>
                                         <div class="supply-item">
@@ -5860,8 +5951,8 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                                 <strong>태양광</strong><br>
                                                 <span id="solarPower">3.5 kW</span><br>
                                                 <small class="text-muted">(24.4%)</small>
-                                            </div>
-                                        </div>
+                                </div>
+                            </div>
                                         <div class="supply-item">
                                             <div class="supply-icon">🔋</div>
                                             <div class="supply-info">
@@ -5890,17 +5981,17 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                 </div>
                                 
                                 <!-- 배분 전략 -->
-                                <div class="col-md-3">
+                            <div class="col-md-3">
                                     <div class="strategy-section">
                                         <h6 class="text-center mb-3">🎯 배분 전략</h6>
                                         <div class="strategy-item">
                                             <div class="strategy-priority">우선순위 1</div>
                                             <div class="strategy-desc">필수 부하<br><small>(전산, 안전)</small></div>
-                                        </div>
+                                </div>
                                         <div class="strategy-item">
                                             <div class="strategy-priority">우선순위 2</div>
                                             <div class="strategy-desc">냉방 부하<br><small>(태양광 우선)</small></div>
-                                        </div>
+                            </div>
                                         <div class="strategy-item">
                                             <div class="strategy-priority">우선순위 3</div>
                                             <div class="strategy-desc">조명<br><small>(ESS 활용)</small></div>
@@ -6033,20 +6124,20 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                             <!-- 매칭 분석 요약 -->
                             <div class="matching-summary mt-4">
                                 <div class="row text-center">
-                                    <div class="col-md-3">
+                            <div class="col-md-3">
                                         <div class="summary-item">
                                             <h6 class="text-primary">매칭율</h6>
                                             <h4 id="matchingRate">87.3%</h4>
                                             <small class="text-muted">수요 대비 공급</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
                                         <div class="summary-item">
                                             <h6 class="text-success">그리드 의존도</h6>
                                             <h4 id="gridDependency">63%</h4>
                                             <small class="text-muted">외부 전력 비율</small>
-                                        </div>
-                                    </div>
+                                </div>
+                            </div>
                                     <div class="col-md-3">
                                         <div class="summary-item">
                                             <h6 class="text-warning">자가발전 비율</h6>
@@ -6078,7 +6169,7 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                 <div class="dr-header">
                                     <h6><i class="fas fa-lightbulb"></i> AI 추천 제어 전략 (3시간 후 대비)</h6>
                                     <span class="dr-priority high">우선순위: 높음</span>
-                                </div>
+                    </div>
                                 <div class="dr-content">
                                     <div class="dr-item">
                                         <div class="dr-title">1. 냉방 시스템 최적화</div>
@@ -6090,28 +6181,28 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                                     <input type="radio" name="hvac_control" id="hvac_temp" value="temp">
                                                     <label for="hvac_temp">설정 온도 1°C 상향 (24°C → 25°C)</label>
                                                     <div class="dr-effect">효과: -80 kW | 체감: 낮음 | 적용: 17:00</div>
-                                                </div>
+                </div>
                                                 <div class="dr-option">
                                                     <input type="radio" name="hvac_control" id="hvac_air" value="air">
                                                     <label for="hvac_air">외기 도입량 20% 증가 (자연 냉방)</label>
                                                     <div class="dr-effect">효과: -25 kW | 체감: 없음 | 적용: 16:30</div>
-                                                </div>
+                                    </div>
                                                 <div class="dr-option">
                                                     <input type="radio" name="hvac_control" id="hvac_zone" value="zone">
                                                     <label for="hvac_zone">미사용 구역 냉방 차단</label>
                                                     <div class="dr-effect">효과: -15 kW | 체감: 없음 | 적용: 즉시</div>
-                                                </div>
-                                            </div>
+                                </div>
+                                    </div>
                                             <div class="dr-summary">
                                                 <strong>예상 절감: 120 kW | 비용 절감: ₩14,400</strong>
                                                 <div class="dr-actions">
                                                     <button class="btn btn-success btn-sm" onclick="applyDRStrategy('hvac')">적용하기</button>
                                                     <button class="btn btn-outline-primary btn-sm" onclick="scheduleDRStrategy('hvac')">일정 설정</button>
                                                     <button class="btn btn-outline-secondary btn-sm" onclick="ignoreDRStrategy('hvac')">무시</button>
-                                                </div>
-                                            </div>
-                                        </div>
+                                </div>
                                     </div>
+                                </div>
+                            </div>
                                     
                                     <div class="dr-item">
                                         <div class="dr-title">2. 조명 자동 조도 조절</div>
@@ -6123,7 +6214,7 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                                     <input type="radio" name="lighting_control" id="light_window" value="window">
                                                     <label for="light_window">창가 구역 조도 30% 감소 (자연광 활용)</label>
                                                     <div class="dr-effect">효과: -20 kW | 체감: 없음 | 적용: 즉시</div>
-                                                </div>
+                        </div>
                                                 <div class="dr-option">
                                                     <input type="radio" name="lighting_control" id="light_sensor" value="sensor">
                                                     <label for="light_sensor">복도/화장실 인체감지 센서 작동</label>
@@ -6144,10 +6235,10 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
+                    </div>
+                </div>
+            </div>
+
                             <div class="dr-summary-total">
                                 <h6>📊 전체 수요 반응 효과 요약</h6>
                                 <div class="row">
@@ -6156,22 +6247,22 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                             <strong>총 절감량</strong><br>
                                             <span class="stat-value">170 kW</span><br>
                                             <small>(전체 수요의 11.3%)</small>
-                                        </div>
-                                    </div>
+                        </div>
+                                </div>
                                     <div class="col-md-3">
                                         <div class="summary-stat">
                                             <strong>비용 절감</strong><br>
                                             <span class="stat-value">₩20,400</span><br>
                                             <small>(3시간)</small>
-                                        </div>
-                                    </div>
+                            </div>
+                        </div>
                                     <div class="col-md-3">
                                         <div class="summary-stat">
                                             <strong>CO₂ 감축</strong><br>
                                             <span class="stat-value">6.2 kg</span><br>
                                             <small>(환경 기여)</small>
-                                        </div>
-                                    </div>
+                    </div>
+                </div>
                                     <div class="col-md-3">
                                         <div class="summary-stat">
                                             <strong>매칭율 개선</strong><br>
@@ -6201,9 +6292,9 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                     <div class="notification-desc">예상 원인: 회의실 4개 동시 사용</div>
                                     <div class="notification-action">
                                         <button class="btn btn-sm btn-warning" onclick="handleUrgentAlert('building_a')">즉시 조치</button>
-                                    </div>
-                                </div>
                             </div>
+                        </div>
+                                </div>
                             
                             <div class="notification-item warning">
                                 <div class="notification-icon">🟡</div>
@@ -6212,17 +6303,17 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                     <div class="notification-desc">예상 완료: 14:55</div>
                                     <div class="notification-action">
                                         <button class="btn btn-sm btn-outline-warning" onclick="handleWarningAlert('ess_bank1')">자동 전환</button>
-                                    </div>
-                                </div>
                             </div>
+                        </div>
+                    </div>
                             
                             <div class="notification-item info">
                                 <div class="notification-icon">🟢</div>
                                 <div class="notification-content">
                                     <div class="notification-title">태양광 발전 최적 상태 (3.5 kW)</div>
                                     <div class="notification-desc">효율: 18.2% (평균 대비 +2.1%)</div>
-                                </div>
-                            </div>
+                </div>
+            </div>
                         </div>
                         
                         <div class="performance-summary mt-3">
