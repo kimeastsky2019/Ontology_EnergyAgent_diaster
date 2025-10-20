@@ -1808,19 +1808,19 @@ async def trading_ai_page(request: Request, lang: str = Query("ko", description=
                     </div>`).join('');
             }}
 
-            document.getElementById('notifBtn').addEventListener('click', ()=>{
+            document.getElementById('notifBtn').addEventListener('click', ()=>{{
                 const p = document.getElementById('notifPanel');
-                if (p.style.display==='none') { p.style.display='block'; renderNotifications(); }
-                else { p.style.display='none'; }
-            });
-            document.getElementById('chatSend').addEventListener('click', ()=>{
+                if (p.style.display==='none') {{ p.style.display='block'; renderNotifications(); }}
+                else {{ p.style.display='none'; }}
+            }});
+            document.getElementById('chatSend').addEventListener('click', ()=>{{
                 const input = document.getElementById('chatInput');
                 const text = input.value.trim();
                 if (!text) return;
-                messages.push({ sender:'user', text });
+                messages.push({{ sender:'user', text }});
                 renderChat();
                 input.value='';
-            });
+            }});
 
             // init
             renderAgents();
