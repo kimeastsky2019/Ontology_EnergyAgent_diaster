@@ -233,13 +233,175 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
         <script src="https://cdn.jsdelivr.net/npm/chart.js?v=2.0"></script>
         <style>
             .energy-card {{
-                transition: transform 0.2s;
+                transition: all 0.3s ease;
                 border: none;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                cursor: pointer;
+                position: relative;
+                overflow: hidden;
             }}
+            
+            .energy-card::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+                transition: left 0.5s;
+            }}
+            
+            .energy-card:hover::before {{
+                left: 100%;
+            }}
+            
             .energy-card:hover {{
-                transform: translateY(-5px);
-                box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+                transform: translateY(-8px) scale(1.02);
+                box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+            }}
+            
+            .energy-card:active {{
+                transform: translateY(-4px) scale(0.98);
+            }}
+            
+            .energy-card .card-body {{
+                position: relative;
+                z-index: 1;
+            }}
+            
+            .energy-card i {{
+                transition: all 0.3s ease;
+            }}
+            
+            .energy-card:hover i {{
+                transform: scale(1.2) rotate(5deg);
+            }}
+            
+            .energy-card .btn {{
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }}
+            
+            .energy-card .btn::before {{
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 0;
+                height: 0;
+                background: rgba(255,255,255,0.2);
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                transition: width 0.6s, height 0.6s;
+            }}
+            
+            .energy-card .btn:hover::before {{
+                width: 300px;
+                height: 300px;
+            }}
+            
+            .energy-card .btn:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            }}
+            
+            /* 실시간 업데이트 애니메이션 */
+            .real-time-update {{
+                animation: pulse 2s infinite;
+            }}
+            
+            @keyframes pulse {{
+                0% {{ opacity: 1; }}
+                50% {{ opacity: 0.7; }}
+                100% {{ opacity: 1; }}
+            }}
+            
+            /* 알림 애니메이션 */
+            @keyframes slideInRight {{
+                from {{
+                    transform: translateX(100%);
+                    opacity: 0;
+                }}
+                to {{
+                    transform: translateX(0);
+                    opacity: 1;
+                }}
+            }}
+            
+            @keyframes slideOutRight {{
+                from {{
+                    transform: translateX(0);
+                    opacity: 1;
+                }}
+                to {{
+                    transform: translateX(100%);
+                    opacity: 0;
+                }}
+            }}
+            
+            /* 로딩 애니메이션 */
+            .loading-spinner {{
+                animation: spin 1s linear infinite;
+            }}
+            
+            @keyframes spin {{
+                from {{ transform: rotate(0deg); }}
+                to {{ transform: rotate(360deg); }}
+            }}
+            
+            /* 차트 호버 효과 */
+            .chart-container {{
+                position: relative;
+                transition: all 0.3s ease;
+            }}
+            
+            .chart-container:hover {{
+                transform: scale(1.02);
+                box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            }}
+            
+            /* 실시간 데이터 강조 */
+            .real-time-value {{
+                font-weight: bold;
+                transition: all 0.3s ease;
+            }}
+            
+            .real-time-value.updated {{
+                animation: highlight 0.5s ease;
+            }}
+            
+            @keyframes highlight {{
+                0% {{ background-color: #4f46e5; color: white; }}
+                100% {{ background-color: transparent; color: inherit; }}
+            }}
+            
+            /* 카드 그룹 애니메이션 */
+            .card-group {{
+                animation: fadeInUp 0.6s ease-out;
+            }}
+            
+            @keyframes fadeInUp {{
+                from {{
+                    opacity: 0;
+                    transform: translateY(30px);
+                }}
+                to {{
+                    opacity: 1;
+                    transform: translateY(0);
+                }}
+            }}
+            
+            /* 반응형 개선 */
+            @media (max-width: 768px) {{
+                .energy-card:hover {{
+                    transform: translateY(-3px) scale(1.01);
+                }}
+                
+                .energy-card .btn:hover {{
+                    transform: translateY(-1px);
+                }}
             }}
             .status-indicator {{
                 width: 12px;
@@ -819,7 +981,7 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                 const ctx = document.getElementById('energyChart').getContext('2d');
                 const data = generateEnergyData();
                 
-                new Chart(ctx, {{
+                energyChart = new Chart(ctx, {{
                     type: 'line',
                     data: {{
                         labels: data.hours,
@@ -828,39 +990,145 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                             data: data.actualData,
                             borderColor: 'rgb(75, 192, 192)',
                             backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                            tension: 0.1
+                            tension: 0.1,
+                            pointRadius: 4,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: 'rgb(75, 192, 192)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
                         }}, {{
                             label: '예측 에너지 소비 (kWh)',
                             data: data.predictedData,
                             borderColor: 'rgb(255, 205, 86)',
                             backgroundColor: 'rgba(255, 205, 86, 0.2)',
                             borderDash: [5, 5],
-                            tension: 0.1
+                            tension: 0.1,
+                            pointRadius: 4,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: 'rgb(255, 205, 86)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
                         }}]
                     }},
                     options: {{
                         responsive: true,
+                        interaction: {{
+                            intersect: false,
+                            mode: 'index'
+                        }},
                         scales: {{
                             y: {{
                                 beginAtZero: true,
                                 title: {{
                                     display: true,
-                                    text: '에너지 소비량 (kWh)'
+                                    text: '에너지 소비량 (kWh)',
+                                    font: {{
+                                        size: 12,
+                                        weight: 'bold'
+                                    }}
+                                }},
+                                grid: {{
+                                    color: 'rgba(0,0,0,0.1)'
                                 }}
                             }},
                             x: {{
                                 title: {{
                                     display: true,
-                                    text: '시간 (24시간)'
+                                    text: '시간 (24시간)',
+                                    font: {{
+                                        size: 12,
+                                        weight: 'bold'
+                                    }}
+                                }},
+                                grid: {{
+                                    color: 'rgba(0,0,0,0.1)'
                                 }}
                             }}
                         }},
                         plugins: {{
                             legend: {{
-                                display: false
+                                display: true,
+                                position: 'top',
+                                labels: {{
+                                    usePointStyle: true,
+                                    padding: 20,
+                                    font: {{
+                                        size: 12
+                                    }}
+                                }}
+                            }},
+                            tooltip: {{
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                borderColor: '#4f46e5',
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                displayColors: true,
+                                callbacks: {{
+                                    title: function(context) {{
+                                        return '시간: ' + context[0].label + '시';
+                                    }},
+                                    label: function(context) {{
+                                        return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' kWh';
+                                    }}
+                                }}
                             }}
+                        }},
+                        onClick: function(event, elements) {{
+                            if (elements.length > 0) {{
+                                const element = elements[0];
+                                const datasetIndex = element.datasetIndex;
+                                const dataIndex = element.index;
+                                const value = element.parsed.y;
+                                const time = data.hours[dataIndex];
+                                
+                                showChartDetailModal(datasetIndex, time, value);
+                            }}
+                        }},
+                        onHover: function(event, elements) {{
+                            event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
                         }}
                     }}
+                }});
+            }}
+            
+            // 차트 상세 모달
+            function showChartDetailModal(datasetIndex, time, value) {{
+                const datasetNames = ['실제 에너지 소비', '예측 에너지 소비'];
+                const modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">${{datasetNames[datasetIndex]}} 상세 정보</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <h6>시간 정보</h6>
+                                        <p>시간: ${{time}}시</p>
+                                        <p>소비량: ${{value.toFixed(1)}} kWh</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <h6>분석</h6>
+                                        <p>상태: ${{value > 100 ? '높음' : value > 50 ? '보통' : '낮음'}}</p>
+                                        <p>추천: ${{value > 100 ? '에너지 절약 필요' : '정상 범위'}}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+                
+                modal.addEventListener('hidden.bs.modal', function() {{
+                    modal.remove();
                 }});
             }}
 
@@ -966,9 +1234,269 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
             }}
 
             
-            // 페이지 로드 시 차트 초기화
+            // 전역 변수
+            let energyChart = null;
+            let realTimeData = {{
+                solar: 35,
+                ess: 18,
+                grid: 47,
+                demand: 1250,
+                supply: 1432,
+                efficiency: 87.3
+            }};
+            
+            // 실시간 데이터 업데이트
+            function updateRealTimeData() {{
+                // 실제 데이터 시뮬레이션 (실제로는 API에서 가져옴)
+                realTimeData.solar = Math.max(0, realTimeData.solar + (Math.random() - 0.5) * 5);
+                realTimeData.ess = Math.max(0, realTimeData.ess + (Math.random() - 0.5) * 3);
+                realTimeData.grid = 100 - realTimeData.solar - realTimeData.ess;
+                realTimeData.demand = Math.floor(1200 + Math.random() * 200);
+                realTimeData.supply = Math.floor(1300 + Math.random() * 300);
+                realTimeData.efficiency = Math.floor((realTimeData.supply / realTimeData.demand) * 100);
+                
+                // 차트 업데이트
+                if (energyChart) {{
+                    energyChart.data.datasets[0].data = [realTimeData.solar, realTimeData.ess, realTimeData.grid];
+                    energyChart.update('active');
+                }}
+                
+                // 실시간 수치 업데이트
+                updateRealTimeStats();
+                
+                // 알림 체크
+                checkAlerts();
+            }}
+            
+            // 실시간 통계 업데이트
+            function updateRealTimeStats() {{
+                const elements = {{
+                    'current-demand': realTimeData.demand + ' kW',
+                    'current-supply': realTimeData.supply + ' kW',
+                    'current-efficiency': realTimeData.efficiency + '%',
+                    'solar-power': (realTimeData.solar * 0.14).toFixed(1) + ' kW',
+                    'solar-percentage': realTimeData.solar.toFixed(1),
+                    'ess-power': (realTimeData.ess * 0.14).toFixed(1) + ' kW',
+                    'ess-percentage': realTimeData.ess.toFixed(1),
+                    'grid-power': (realTimeData.grid * 0.14).toFixed(1) + ' kW',
+                    'grid-percentage': realTimeData.grid.toFixed(1)
+                }};
+                
+                Object.entries(elements).forEach(([id, value]) => {{
+                    const element = document.getElementById(id);
+                    if (element) {{
+                        // 애니메이션 효과
+                        element.classList.add('updated');
+                        element.style.transform = 'scale(1.1)';
+                        element.style.color = '#4f46e5';
+                        element.textContent = value;
+                        
+                        setTimeout(() => {{
+                            element.style.transform = 'scale(1)';
+                            element.style.color = '';
+                            element.classList.remove('updated');
+                        }}, 300);
+                    }}
+                }});
+            }}
+            
+            // 알림 시스템
+            function checkAlerts() {{
+                const alerts = [];
+                
+                if (realTimeData.efficiency < 80) {{
+                    alerts.push({{
+                        type: 'warning',
+                        message: '에너지 효율이 80% 미만입니다. 최적화가 필요합니다.',
+                        icon: 'fas fa-exclamation-triangle'
+                    }});
+                }}
+                
+                if (realTimeData.solar > 60) {{
+                    alerts.push({{
+                        type: 'success',
+                        message: '태양광 발전량이 높습니다. ESS 충전을 고려하세요.',
+                        icon: 'fas fa-sun'
+                    }});
+                }}
+                
+                if (realTimeData.demand > realTimeData.supply) {{
+                    alerts.push({{
+                        type: 'danger',
+                        message: '수요가 공급을 초과했습니다. 그리드 전력 사용량을 확인하세요.',
+                        icon: 'fas fa-bolt'
+                    }});
+                }}
+                
+                // 알림 표시
+                if (alerts.length > 0) {{
+                    showNotification(alerts[0]);
+                }}
+            }}
+            
+            // 알림 표시
+            function showNotification(alert) {{
+                // 기존 알림 제거
+                const existingAlert = document.querySelector('.notification-toast');
+                if (existingAlert) {{
+                    existingAlert.remove();
+                }}
+                
+                const notification = document.createElement('div');
+                notification.className = `notification-toast alert alert-${{alert.type}} alert-dismissible fade show`;
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    min-width: 300px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    animation: slideInRight 0.3s ease-out;
+                `;
+                
+                notification.innerHTML = `
+                    <i class="${{alert.icon}} me-2"></i>
+                    ${{alert.message}}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                document.body.appendChild(notification);
+                
+                // 5초 후 자동 제거
+                setTimeout(() => {{
+                    if (notification.parentNode) {{
+                        notification.remove();
+                    }}
+                }}, 5000);
+            }}
+            
+            // 카드 호버 효과
+            function initCardInteractions() {{
+                const cards = document.querySelectorAll('.energy-card');
+                
+                cards.forEach(card => {{
+                    card.addEventListener('mouseenter', function() {{
+                        this.style.transform = 'translateY(-5px)';
+                        this.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+                        this.style.transition = 'all 0.3s ease';
+                    }});
+                    
+                    card.addEventListener('mouseleave', function() {{
+                        this.style.transform = 'translateY(0)';
+                        this.style.boxShadow = '';
+                    }});
+                }});
+            }}
+            
+            // 로딩 애니메이션
+            function showLoadingAnimation() {{
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.id = 'loadingOverlay';
+                loadingOverlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(255,255,255,0.9);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 9999;
+                `;
+                
+                loadingOverlay.innerHTML = `
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3">데이터를 불러오는 중...</p>
+                    </div>
+                `;
+                
+                document.body.appendChild(loadingOverlay);
+            }}
+            
+            function hideLoadingAnimation() {{
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) {{
+                    loadingOverlay.remove();
+                }}
+            }}
+            
+            // 키보드 단축키
+            function initKeyboardShortcuts() {{
+                document.addEventListener('keydown', function(e) {{
+                    if (e.ctrlKey || e.metaKey) {{
+                        switch(e.key) {{
+                            case 'r':
+                                e.preventDefault();
+                                updateRealTimeData();
+                                break;
+                            case 'h':
+                                e.preventDefault();
+                                showHelpModal();
+                                break;
+                        }}
+                    }}
+                }});
+            }}
+            
+            // 도움말 모달
+            function showHelpModal() {{
+                const modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">키보드 단축키</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>기본 단축키</h6>
+                                        <ul>
+                                            <li><kbd>Ctrl+R</kbd> - 데이터 새로고침</li>
+                                            <li><kbd>Ctrl+H</kbd> - 도움말 표시</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>인터랙션</h6>
+                                        <ul>
+                                            <li>차트 클릭 - 상세 정보</li>
+                                            <li>카드 호버 - 확대 효과</li>
+                                            <li>실시간 업데이트 - 5초마다</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+                
+                modal.addEventListener('hidden.bs.modal', function() {{
+                    modal.remove();
+                }});
+            }}
+            
+            // 페이지 로드 시 초기화
             document.addEventListener('DOMContentLoaded', function() {{
                 initEnergyChart();
+                initCardInteractions();
+                initKeyboardShortcuts();
+                
+                // 실시간 업데이트 시작 (5초마다)
+                setInterval(updateRealTimeData, 5000);
+                
+                // 초기 로딩 애니메이션
+                showLoadingAnimation();
+                setTimeout(hideLoadingAnimation, 2000);
             }});
         </script>
     </body>
@@ -6118,8 +6646,8 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                 <div class="col-4">
                                     <div class="metric-card">
                                         <h6 class="text-primary">현재 매칭율</h6>
-                                        <h4 id="currentMatchingRate">87.3%</h4>
-                                        <small class="text-muted">수요: <span id="currentDemand">1,250</span> kW / 공급: <span id="currentSupply">1,432</span> kW</small>
+                                        <h4 id="current-efficiency" class="real-time-value">87.3%</h4>
+                                        <small class="text-muted">수요: <span id="current-demand" class="real-time-value">1,250</span> kW / 공급: <span id="current-supply" class="real-time-value">1,432</span> kW</small>
                                 </div>
                             </div>
                                 <div class="col-4">
@@ -6364,24 +6892,24 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                             <div class="supply-icon">☀️</div>
                                             <div class="supply-info">
                                                 <strong>태양광</strong><br>
-                                                <span id="solarPower">3.5 kW</span><br>
-                                                <small class="text-muted">(24.4%)</small>
+                                                <span id="solar-power" class="real-time-value">3.5 kW</span><br>
+                                                <small class="text-muted">(<span id="solar-percentage" class="real-time-value">24.4</span>%)</small>
                                 </div>
                             </div>
                                         <div class="supply-item">
                                             <div class="supply-icon">🔋</div>
                                             <div class="supply-info">
                                                 <strong>ESS</strong><br>
-                                                <span id="essPower">1.8 kW</span><br>
-                                                <small class="text-muted">(12.6%)</small>
+                                                <span id="ess-power" class="real-time-value">1.8 kW</span><br>
+                                                <small class="text-muted">(<span id="ess-percentage" class="real-time-value">12.6</span>%)</small>
                                             </div>
                                         </div>
                                         <div class="supply-item">
                                             <div class="supply-icon">🔌</div>
                                             <div class="supply-info">
                                                 <strong>그리드</strong><br>
-                                                <span id="gridPower">9.0 kW</span><br>
-                                                <small class="text-muted">(63%)</small>
+                                                <span id="grid-power" class="real-time-value">9.0 kW</span><br>
+                                                <small class="text-muted">(<span id="grid-percentage" class="real-time-value">63</span>%)</small>
                                             </div>
                                         </div>
                                         <div class="supply-item">
