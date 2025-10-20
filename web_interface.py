@@ -195,6 +195,11 @@ def generate_navigation(current_lang='ko'):
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="/agent-system?lang={current_lang}">
+                                <i class="fas fa-robot"></i> AI 에이전트 시스템
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="/health?lang={current_lang}">
                                 <i class="fas fa-heartbeat"></i> {t('navigation.health', current_lang)}
                             </a>
@@ -245,6 +250,42 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
             }}
             .status-online {{ background-color: #28a745; }}
             .status-offline {{ background-color: #dc3545; }}
+            
+            /* AI 에이전트 시스템 스타일 */
+            .site-option {{
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }}
+            .site-option:hover {{
+                border-color: #0d6efd !important;
+                background-color: #f8f9fa !important;
+            }}
+            .site-option.active {{
+                border-color: #0d6efd !important;
+                background-color: #e7f1ff !important;
+            }}
+            .agent-item {{
+                transition: all 0.3s ease;
+            }}
+            .agent-item:hover {{
+                transform: translateX(5px);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            }}
+            .agent-item.enabled {{
+                border-left-color: #28a745 !important;
+                background-color: #f8fff9 !important;
+            }}
+            .agent-item.disabled {{
+                border-left-color: #6c757d !important;
+                background-color: #f8f9fa !important;
+                opacity: 0.7;
+            }}
+            .kpi-card {{
+                transition: transform 0.3s ease;
+            }}
+            .kpi-card:hover {{
+                transform: translateY(-5px);
+            }}
         </style>
     </head>
     <body class="bg-light">
@@ -366,6 +407,24 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                     </div>
                 </div>
 
+                <!-- AI 에이전트 시스템 카드 -->
+                <div class="col-md-2 mb-4">
+                    <div class="card energy-card h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-robot text-primary" style="font-size: 2.5rem;"></i>
+                            </div>
+                            <h6 class="card-title">AI 에이전트 시스템</h6>
+                            <p class="card-text small text-muted mb-3">
+                                HORIZON Multi-Site Energy Management AI Agents
+                            </p>
+                            <a href="#agent-system" class="btn btn-primary btn-sm w-100" onclick="scrollToSection('agent-system')">
+                                <i class="fas fa-arrow-right"></i> AI 에이전트 시스템
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Energy Trading 카드 -->
                 <div class="col-md-2 mb-4">
                     <div class="card energy-card h-100">
@@ -419,24 +478,6 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                         </div>
                     </div>
                 </div>
-
-                <!-- Energy Trading 카드 -->
-                <div class="col-md-2 mb-4">
-                    <div class="card energy-card h-100">
-                        <div class="card-body text-center">
-                            <div class="mb-3">
-                                <i class="fas fa-exchange-alt text-success" style="font-size: 2.5rem;"></i>
-                            </div>
-                            <h6 class="card-title">전력/탄소 거래</h6>
-                            <p class="card-text small text-muted mb-3">
-                                P2P 전력 거래 & 탄소 크레딧 시스템
-                            </p>
-                            <a href="/trading?lang={lang}" class="btn btn-success btn-sm w-100">
-                                <i class="fas fa-arrow-right"></i> 전력/탄소 거래
-                            </a>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- 실시간 에너지 분석 차트 -->
@@ -455,6 +496,319 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                                 <span class="badge bg-warning ms-3 me-2">○</span> <span data-translate="predicted_consumption">예측 에너지 소비 (kWh)</span>
                             </div>
                             <canvas id="energyChart" width="400" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI 에이전트 시스템 섹션 -->
+            <div class="row mt-5" id="agent-system">
+                <div class="col-12">
+                    <div class="card energy-card">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0">
+                                <i class="fas fa-robot"></i> HORIZON AI Agent System
+                                <small class="ms-2">Multi-Site Energy Management AI Agents</small>
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <!-- KPI 카드들 -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <div class="kpi-card bg-primary text-white text-center p-3 rounded">
+                                        <div class="h2 mb-1">6</div>
+                                        <div class="small">총 에이전트</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="kpi-card bg-success text-white text-center p-3 rounded">
+                                        <div class="h2 mb-1">5</div>
+                                        <div class="small">활성 에이전트</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="kpi-card bg-info text-white text-center p-3 rounded">
+                                        <div class="h2 mb-1">5,247</div>
+                                        <div class="small">총 예측 수</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="kpi-card bg-warning text-white text-center p-3 rounded">
+                                        <div class="h2 mb-1">91%</div>
+                                        <div class="small">평균 정확도</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 사이트 선택 -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5><i class="fas fa-map-marker-alt text-primary"></i> 사이트 선택 / Select Site</h5>
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="site-option active p-3 border rounded mb-2" onclick="selectSite('oulu')">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="fs-1 me-3">🇫🇮</span>
+                                                    <div>
+                                                        <h6 class="mb-1">Oulu University</h6>
+                                                        <p class="mb-0 text-muted small">Finland - 극한 기후</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="site-option p-3 border rounded mb-2" onclick="selectSite('kth')">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="fs-1 me-3">🇸🇪</span>
+                                                    <div>
+                                                        <h6 class="mb-1">KTH Living Lab</h6>
+                                                        <p class="mb-0 text-muted small">Sweden - 실증 연구</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="site-option p-3 border rounded mb-2" onclick="selectSite('beia')">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="fs-1 me-3">🇷🇴</span>
+                                                    <div>
+                                                        <h6 class="mb-1">BEIA Research</h6>
+                                                        <p class="mb-0 text-muted small">Romania - IoT 시스템</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="site-option p-3 border rounded mb-2" onclick="selectSite('triaena')">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="fs-1 me-3">🇬🇷</span>
+                                                    <div>
+                                                        <h6 class="mb-1">Triaena/OTE</h6>
+                                                        <p class="mb-0 text-muted small">Greece - 상업 빌딩</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- AI 에이전트 목록 -->
+                            <div class="row">
+                                <div class="col-12">
+                                    <h5><i class="fas fa-cogs text-primary"></i> AI 에이전트 관리 / AI Agent Management</h5>
+                                    
+                                    <!-- 에이전트 1: 에너지 수요 분석 -->
+                                    <div class="agent-item enabled p-3 mb-3 border-start border-5 border-primary bg-light rounded">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-1 text-center">
+                                                <i class="fas fa-chart-line fa-2x text-primary"></i>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6 class="mb-1">에너지 수요 분석 MCP</h6>
+                                                <p class="mb-0 text-muted small">Energy Demand Analysis MCP</p>
+                                                <small class="text-muted">단기/중기 에너지 수요 예측, 소비 패턴 분석</small>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <span class="badge bg-success">✅ 활성</span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-2">
+                                                    <small class="text-muted">정확도: 94%</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-primary" style="width: 94%"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">예측 수: 1,247</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-success" style="width: 85%"></div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted">응답시간: 0.3s</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-warning" style="width: 70%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <button class="btn btn-primary btn-sm" onclick="toggleAgent('demand-analysis')">
+                                                    <i class="fas fa-pause"></i> 비활성화
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 에이전트 2: AI/ML 모델 성능 평가 -->
+                                    <div class="agent-item enabled p-3 mb-3 border-start border-5 border-primary bg-light rounded">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-1 text-center">
+                                                <i class="fas fa-brain fa-2x text-purple"></i>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6 class="mb-1">AI/ML 모델 성능 평가 MCP</h6>
+                                                <p class="mb-0 text-muted small">AI/ML Model Performance Evaluation MCP</p>
+                                                <small class="text-muted">모델 성능 모니터링, A/B 테스트, 자동 재학습</small>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <span class="badge bg-success">✅ 활성</span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-2">
+                                                    <small class="text-muted">정확도: 92%</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-purple" style="width: 92%"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">예측 수: 856</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-success" style="width: 60%"></div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted">응답시간: 0.5s</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-warning" style="width: 50%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <button class="btn btn-primary btn-sm" onclick="toggleAgent('ml-performance')">
+                                                    <i class="fas fa-pause"></i> 비활성화
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 에이전트 3: 에너지 공급 분석 -->
+                                    <div class="agent-item enabled p-3 mb-3 border-start border-5 border-primary bg-light rounded">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-1 text-center">
+                                                <i class="fas fa-bolt fa-2x text-warning"></i>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6 class="mb-1">에너지 공급 분석 MCP</h6>
+                                                <p class="mb-0 text-muted small">Energy Supply Analysis MCP</p>
+                                                <small class="text-muted">발전량 예측, 재생에너지 최적화, ESS 관리</small>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <span class="badge bg-success">✅ 활성</span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-2">
+                                                    <small class="text-muted">정확도: 89%</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-warning" style="width: 89%"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">예측 수: 2,134</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-success" style="width: 100%"></div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted">응답시간: 0.4s</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-warning" style="width: 60%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <button class="btn btn-primary btn-sm" onclick="toggleAgent('supply-analysis')">
+                                                    <i class="fas fa-pause"></i> 비활성화
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 에이전트 4: 수요 제어 알고리즘 -->
+                                    <div class="agent-item enabled p-3 mb-3 border-start border-5 border-primary bg-light rounded">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-1 text-center">
+                                                <i class="fas fa-sliders-h fa-2x text-success"></i>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6 class="mb-1">수요 제어 알고리즘 MCP</h6>
+                                                <p class="mb-0 text-muted small">Demand Control Algorithm MCP</p>
+                                                <small class="text-muted">수요-공급 매칭, 피크 억제, 부하 제어</small>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <span class="badge bg-success">✅ 활성</span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-2">
+                                                    <small class="text-muted">정확도: 91%</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-success" style="width: 91%"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">예측 수: 567</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-success" style="width: 40%"></div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted">응답시간: 0.2s</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-warning" style="width: 80%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <button class="btn btn-primary btn-sm" onclick="toggleAgent('demand-control')">
+                                                    <i class="fas fa-pause"></i> 비활성화
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 에이전트 5: 전력/탄소 거래 -->
+                                    <div class="agent-item enabled p-3 mb-3 border-start border-5 border-primary bg-light rounded">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-1 text-center">
+                                                <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6 class="mb-1">전력/탄소 거래 MCP</h6>
+                                                <p class="mb-0 text-muted small">Power & Carbon Trading MCP</p>
+                                                <small class="text-muted">거래 최적화, 가격 예측, 자동 입찰</small>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <span class="badge bg-success">✅ 활성</span>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-2">
+                                                    <small class="text-muted">정확도: 87%</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-success" style="width: 87%"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">예측 수: 342</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-success" style="width: 25%"></div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted">응답시간: 0.6s</small>
+                                                    <div class="progress" style="height: 4px;">
+                                                        <div class="progress-bar bg-warning" style="width: 40%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <button class="btn btn-primary btn-sm" onclick="toggleAgent('trading')">
+                                                    <i class="fas fa-pause"></i> 비활성화
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -549,6 +903,99 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                 const url = new URL(window.location);
                 url.searchParams.set('lang', lang);
                 window.location.href = url.toString();
+            }}
+
+            // AI 에이전트 시스템 관련 함수들
+            function scrollToSection(sectionId) {{
+                document.getElementById(sectionId).scrollIntoView({{ behavior: 'smooth' }});
+            }}
+
+            function selectSite(siteId) {{
+                // 모든 사이트 옵션에서 active 클래스 제거
+                document.querySelectorAll('.site-option').forEach(option => {{
+                    option.classList.remove('active');
+                }});
+                
+                // 선택된 사이트에 active 클래스 추가
+                event.target.closest('.site-option').classList.add('active');
+                
+                // 사이트별 에이전트 설정 로드 (실제 구현에서는 API 호출)
+                loadSiteAgents(siteId);
+            }}
+
+            function loadSiteAgents(siteId) {{
+                // 실제 구현에서는 API에서 사이트별 설정을 가져옴
+                console.log(`Loading agents for site: ${{siteId}}`);
+                
+                // 사이트별 권장 설정 적용
+                const siteConfigs = {{
+                    'oulu': {{
+                        recommended: ['demand-analysis', 'supply-analysis', 'demand-control', 'trading'],
+                        optional: ['ml-performance']
+                    }},
+                    'kth': {{
+                        recommended: ['demand-analysis', 'ml-performance', 'supply-analysis', 'demand-control', 'trading'],
+                        optional: []
+                    }},
+                    'beia': {{
+                        recommended: ['demand-analysis', 'supply-analysis', 'demand-control', 'trading'],
+                        optional: ['ml-performance']
+                    }},
+                    'triaena': {{
+                        recommended: ['supply-analysis', 'demand-control', 'trading', 'demand-analysis'],
+                        optional: ['ml-performance']
+                    }}
+                }};
+                
+                const config = siteConfigs[siteId];
+                if (config) {{
+                    // 모든 에이전트를 비활성화
+                    document.querySelectorAll('.agent-item').forEach(agent => {{
+                        agent.classList.remove('enabled');
+                        agent.classList.add('disabled');
+                        const button = agent.querySelector('button');
+                        const statusBadge = agent.querySelector('.badge');
+                        button.innerHTML = '<i class="fas fa-play"></i> 활성화';
+                        statusBadge.innerHTML = '⏸️ 비활성';
+                        statusBadge.className = 'badge bg-secondary';
+                    }});
+                    
+                    // 권장 에이전트 활성화
+                    config.recommended.forEach(agentId => {{
+                        const agentElement = document.querySelector(`[onclick*="${{agentId}}"]`).closest('.agent-item');
+                        if (agentElement) {{
+                            agentElement.classList.remove('disabled');
+                            agentElement.classList.add('enabled');
+                            const button = agentElement.querySelector('button');
+                            const statusBadge = agentElement.querySelector('.badge');
+                            button.innerHTML = '<i class="fas fa-pause"></i> 비활성화';
+                            statusBadge.innerHTML = '✅ 활성';
+                            statusBadge.className = 'badge bg-success';
+                        }}
+                    }});
+                }}
+            }}
+
+            function toggleAgent(agentId) {{
+                const agentElement = document.querySelector(`[onclick*="${{agentId}}"]`).closest('.agent-item');
+                const button = agentElement.querySelector('button');
+                const statusBadge = agentElement.querySelector('.badge');
+                
+                if (agentElement.classList.contains('enabled')) {{
+                    // 비활성화
+                    agentElement.classList.remove('enabled');
+                    agentElement.classList.add('disabled');
+                    button.innerHTML = '<i class="fas fa-play"></i> 활성화';
+                    statusBadge.innerHTML = '⏸️ 비활성';
+                    statusBadge.className = 'badge bg-secondary';
+                }} else {{
+                    // 활성화
+                    agentElement.classList.remove('disabled');
+                    agentElement.classList.add('enabled');
+                    button.innerHTML = '<i class="fas fa-pause"></i> 비활성화';
+                    statusBadge.innerHTML = '✅ 활성';
+                    statusBadge.className = 'badge bg-success';
+                }}
             }}
 
             // 페이지 로드 시 차트 초기화
@@ -9353,6 +9800,1162 @@ async def llm_slm_page(request: Request, lang: str = Query("ko", description="La
                     ];
                     addTrainingLog(messages[Math.floor(Math.random() * messages.length)]);
                 }}, 30000);
+            }});
+        </script>
+    </body>
+    </html>
+    """
+
+@web_app.get("/agent-system", response_class=HTMLResponse)
+async def agent_system_page(request: Request, lang: str = Query("ko", description="Language code")):
+    """AI 에이전트 시스템 관리 페이지"""
+    # 언어 설정
+    if lang not in get_available_languages():
+        lang = "ko"
+    
+    return f"""
+    <!DOCTYPE html>
+    <html lang="{lang}">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🤖 HORIZON AI Agent System - Multi-Site Energy Management</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min-icons" rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+        <style>
+            :root {{
+                --primary-color: #4f46e5;
+                --secondary-color: #06b6d4;
+                --success-color: #10b981;
+                --warning-color: #f59e0b;
+                --danger-color: #ef4444;
+                --info-color: #3b82f6;
+                --light-color: #f8fafc;
+                --dark-color: #1e293b;
+            }}
+            
+            body {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }}
+            
+            .agent-card {{
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 20px;
+                padding: 25px;
+                margin-bottom: 25px;
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+                backdrop-filter: blur(15px);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                transition: transform 0.3s ease, box-shadow 0.3s ease;
+            }}
+            
+            .agent-card:hover {{
+                transform: translateY(-5px);
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            }}
+            
+            .agent-header {{
+                background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+                color: white;
+                border-radius: 20px;
+                padding: 30px;
+                margin-bottom: 30px;
+                text-align: center;
+            }}
+            
+            .kpi-card {{
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                color: white;
+                border-radius: 15px;
+                padding: 20px;
+                text-align: center;
+                margin-bottom: 20px;
+            }}
+            
+            .kpi-value {{
+                font-size: 2.5rem;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }}
+            
+            .kpi-label {{
+                font-size: 0.9rem;
+                opacity: 0.9;
+            }}
+            
+            .agent-item {{
+                background: white;
+                border-radius: 15px;
+                padding: 20px;
+                margin-bottom: 15px;
+                border-left: 5px solid var(--primary-color);
+                transition: all 0.3s ease;
+            }}
+            
+            .agent-item:hover {{
+                transform: translateX(5px);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            }}
+            
+            .agent-item.enabled {{
+                border-left-color: var(--success-color);
+                background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+            }}
+            
+            .agent-item.disabled {{
+                border-left-color: #d1d5db;
+                background: #f9fafb;
+                opacity: 0.7;
+            }}
+            
+            .status-badge {{
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 0.8rem;
+                font-weight: bold;
+            }}
+            
+            .status-active {{
+                background: #d1fae5;
+                color: #065f46;
+            }}
+            
+            .status-inactive {{
+                background: #f3f4f6;
+                color: #6b7280;
+            }}
+            
+            .metric-bar {{
+                height: 8px;
+                background: #e5e7eb;
+                border-radius: 4px;
+                overflow: hidden;
+                margin-top: 5px;
+            }}
+            
+            .metric-fill {{
+                height: 100%;
+                border-radius: 4px;
+                transition: width 0.3s ease;
+            }}
+            
+            .metric-fill.blue {{ background: #3b82f6; }}
+            .metric-fill.green {{ background: #10b981; }}
+            .metric-fill.yellow {{ background: #f59e0b; }}
+            .metric-fill.purple {{ background: #8b5cf6; }}
+            .metric-fill.red {{ background: #ef4444; }}
+            .metric-fill.indigo {{ background: #6366f1; }}
+            
+            .site-selector {{
+                background: white;
+                border-radius: 15px;
+                padding: 20px;
+                margin-bottom: 20px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            }}
+            
+            .site-option {{
+                padding: 15px;
+                border: 2px solid #e5e7eb;
+                border-radius: 10px;
+                margin: 10px 0;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }}
+            
+            .site-option:hover {{
+                border-color: var(--primary-color);
+                background: #f8fafc;
+            }}
+            
+            .site-option.active {{
+                border-color: var(--primary-color);
+                background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+            }}
+            
+            .chart-container {{
+                height: 300px;
+                position: relative;
+            }}
+            
+            .btn-agent {{
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                border: none;
+                color: white;
+                padding: 8px 20px;
+                border-radius: 25px;
+                font-weight: bold;
+                transition: all 0.3s ease;
+            }}
+            
+            .btn-agent:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
+                color: white;
+            }}
+            
+            .btn-agent:disabled {{
+                background: #9ca3af;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }}
+            
+            .expandable {{
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+            }}
+            
+            .expandable.expanded {{
+                max-height: 1000px;
+            }}
+            
+            .fade-in {{
+                animation: fadeIn 0.8s ease-in;
+            }}
+            
+            @keyframes fadeIn {{
+                from {{ opacity: 0; transform: translateY(30px); }}
+                to {{ opacity: 1; transform: translateY(0); }}
+            }}
+            
+            .pulse {{
+                animation: pulse 2s infinite;
+            }}
+            
+            @keyframes pulse {{
+                0% {{ transform: scale(1); }}
+                50% {{ transform: scale(1.05); }}
+                100% {{ transform: scale(1); }}
+            }}
+        </style>
+    </head>
+    <body>
+        {generate_navigation(lang)}
+        
+        <div class="container-fluid mt-4">
+            <!-- AI Agent System 헤더 -->
+            <div class="agent-header">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-robot"></i> HORIZON AI Agent System
+                </h1>
+                <p class="lead mb-4">Multi-Site Energy Management AI Agents</p>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="kpi-card">
+                            <div class="kpi-value" id="totalAgents">6</div>
+                            <div class="kpi-label">총 에이전트</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="kpi-card">
+                            <div class="kpi-value" id="activeAgents">5</div>
+                            <div class="kpi-label">활성 에이전트</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="kpi-card">
+                            <div class="kpi-value" id="totalPredictions">5,247</div>
+                            <div class="kpi-label">총 예측 수</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="kpi-card">
+                            <div class="kpi-value" id="avgAccuracy">91%</div>
+                            <div class="kpi-label">평균 정확도</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 사이트 선택 -->
+            <div class="site-selector">
+                <h3 class="mb-4">
+                    <i class="fas fa-map-marker-alt text-primary"></i> 
+                    사이트 선택 / Select Site
+                </h3>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="site-option active" onclick="selectSite('oulu')">
+                            <div class="d-flex align-items-center">
+                                <span class="fs-1 me-3">🇫🇮</span>
+                                <div>
+                                    <h5 class="mb-1">Oulu University</h5>
+                                    <p class="mb-0 text-muted">Finland - 극한 기후</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="site-option" onclick="selectSite('kth')">
+                            <div class="d-flex align-items-center">
+                                <span class="fs-1 me-3">🇸🇪</span>
+                                <div>
+                                    <h5 class="mb-1">KTH Living Lab</h5>
+                                    <p class="mb-0 text-muted">Sweden - 실증 연구</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="site-option" onclick="selectSite('beia')">
+                            <div class="d-flex align-items-center">
+                                <span class="fs-1 me-3">🇷🇴</span>
+                                <div>
+                                    <h5 class="mb-1">BEIA Research</h5>
+                                    <p class="mb-0 text-muted">Romania - IoT 시스템</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="site-option" onclick="selectSite('triaena')">
+                            <div class="d-flex align-items-center">
+                                <span class="fs-1 me-3">🇬🇷</span>
+                                <div>
+                                    <h5 class="mb-1">Triaena/OTE</h5>
+                                    <p class="mb-0 text-muted">Greece - 상업 빌딩</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI 에이전트 목록 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="agent-card">
+                        <h3 class="mb-4">
+                            <i class="fas fa-cogs text-primary"></i> 
+                            AI 에이전트 관리 / AI Agent Management
+                        </h3>
+                        
+                        <!-- 에이전트 1: 에너지 수요 분석 -->
+                        <div class="agent-item enabled" id="agent-demand-analysis">
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <div class="text-center">
+                                        <i class="fas fa-chart-line fa-2x text-primary"></i>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-1">에너지 수요 분석 MCP</h5>
+                                    <p class="mb-0 text-muted">Energy Demand Analysis MCP</p>
+                                    <small class="text-muted">단기/중기 에너지 수요 예측, 소비 패턴 분석</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="status-badge status-active">✅ 활성</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        <small class="text-muted">정확도: 94%</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill blue" style="width: 94%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted">예측 수: 1,247</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill green" style="width: 85%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">응답시간: 0.3s</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill yellow" style="width: 70%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-agent btn-sm" onclick="toggleAgent('demand-analysis')">
+                                        <i class="fas fa-pause"></i> 비활성화
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm mt-1" onclick="toggleDetails('demand-analysis')">
+                                        <i class="fas fa-cog"></i> 설정
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 상세 설정 (확장 가능) -->
+                            <div class="expandable" id="details-demand-analysis">
+                                <hr class="my-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-tools text-primary"></i> 도구 및 기능</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success"></i> 시계열 예측 모델 (LSTM, Prophet)</li>
+                                            <li><i class="fas fa-check text-success"></i> 기상 데이터 연동</li>
+                                            <li><i class="fas fa-check text-success"></i> 거주자 행동 패턴 학습</li>
+                                            <li><i class="fas fa-check text-success"></i> 계절별 수요 변동 분석</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-cog text-primary"></i> 에이전트 설정</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small class="text-muted">예측 윈도우:</small><br>
+                                                <strong>48시간</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">업데이트 주기:</small><br>
+                                                <strong>15분</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">신뢰도 임계값:</small><br>
+                                                <strong>85%</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">계절 패턴:</small><br>
+                                                <strong>일간</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 에이전트 2: AI/ML 모델 성능 평가 -->
+                        <div class="agent-item enabled" id="agent-ml-performance">
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <div class="text-center">
+                                        <i class="fas fa-brain fa-2x text-purple"></i>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-1">AI/ML 모델 성능 평가 MCP</h5>
+                                    <p class="mb-0 text-muted">AI/ML Model Performance Evaluation MCP</p>
+                                    <small class="text-muted">모델 성능 모니터링, A/B 테스트, 자동 재학습</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="status-badge status-active">✅ 활성</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        <small class="text-muted">정확도: 92%</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill purple" style="width: 92%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted">예측 수: 856</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill green" style="width: 60%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">응답시간: 0.5s</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill yellow" style="width: 50%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-agent btn-sm" onclick="toggleAgent('ml-performance')">
+                                        <i class="fas fa-pause"></i> 비활성화
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm mt-1" onclick="toggleDetails('ml-performance')">
+                                        <i class="fas fa-cog"></i> 설정
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 상세 설정 -->
+                            <div class="expandable" id="details-ml-performance">
+                                <hr class="my-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-tools text-primary"></i> 도구 및 기능</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success"></i> AutoML 파이프라인</li>
+                                            <li><i class="fas fa-check text-success"></i> 모델 비교 (XGBoost, LGBM, RF, NN)</li>
+                                            <li><i class="fas fa-check text-success"></i> 성능 메트릭 추적</li>
+                                            <li><i class="fas fa-check text-success"></i> 모델 거버넌스 시스템</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-cog text-primary"></i> 에이전트 설정</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small class="text-muted">평가 주기:</small><br>
+                                                <strong>일간</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">성능 임계값:</small><br>
+                                                <strong>90%</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">자동 재학습:</small><br>
+                                                <strong>활성</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">A/B 테스트:</small><br>
+                                                <strong>7일</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 에이전트 3: 온톨로지 MCP -->
+                        <div class="agent-item disabled" id="agent-ontology">
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <div class="text-center">
+                                        <i class="fas fa-project-diagram fa-2x text-indigo"></i>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-1">온톨로지 MCP</h5>
+                                    <p class="mb-0 text-muted">Ontology MCP</p>
+                                    <small class="text-muted">에너지 시스템 지식 그래프, 데이터 표준화</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="status-badge status-inactive">⏸️ 비활성</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        <small class="text-muted">정확도: -</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill indigo" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted">예측 수: 0</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill green" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">응답시간: -</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill yellow" style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-agent btn-sm" onclick="toggleAgent('ontology')">
+                                        <i class="fas fa-play"></i> 활성화
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm mt-1" onclick="toggleDetails('ontology')">
+                                        <i class="fas fa-cog"></i> 설정
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 상세 설정 -->
+                            <div class="expandable" id="details-ontology">
+                                <hr class="my-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-tools text-primary"></i> 도구 및 기능</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success"></i> SAREF 온톨로지 매핑</li>
+                                            <li><i class="fas fa-check text-success"></i> 시맨틱 데이터 모델링</li>
+                                            <li><i class="fas fa-check text-success"></i> 지식 추론 엔진</li>
+                                            <li><i class="fas fa-check text-success"></i> RDF/OWL 변환</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-cog text-primary"></i> 에이전트 설정</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small class="text-muted">온톨로지 버전:</small><br>
+                                                <strong>SAREF 4.0</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">추론 엔진:</small><br>
+                                                <strong>Pellet</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">업데이트 모드:</small><br>
+                                                <strong>증분</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">캐싱:</small><br>
+                                                <strong>활성</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 에이전트 4: 에너지 공급 분석 -->
+                        <div class="agent-item enabled" id="agent-supply-analysis">
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <div class="text-center">
+                                        <i class="fas fa-bolt fa-2x text-warning"></i>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-1">에너지 공급 분석 MCP</h5>
+                                    <p class="mb-0 text-muted">Energy Supply Analysis MCP</p>
+                                    <small class="text-muted">발전량 예측, 재생에너지 최적화, ESS 관리</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="status-badge status-active">✅ 활성</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        <small class="text-muted">정확도: 89%</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill yellow" style="width: 89%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted">예측 수: 2,134</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill green" style="width: 100%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">응답시간: 0.4s</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill yellow" style="width: 60%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-agent btn-sm" onclick="toggleAgent('supply-analysis')">
+                                        <i class="fas fa-pause"></i> 비활성화
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm mt-1" onclick="toggleDetails('supply-analysis')">
+                                        <i class="fas fa-cog"></i> 설정
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 상세 설정 -->
+                            <div class="expandable" id="details-supply-analysis">
+                                <hr class="my-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-tools text-primary"></i> 도구 및 기능</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success"></i> 태양광/풍력 발전 예측</li>
+                                            <li><i class="fas fa-check text-success"></i> ESS 최적화 알고리즘</li>
+                                            <li><i class="fas fa-check text-success"></i> 날씨 기반 출력 예측</li>
+                                            <li><i class="fas fa-check text-success"></i> 그리드 연동 관리</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-cog text-primary"></i> 에이전트 설정</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small class="text-muted">예측 범위:</small><br>
+                                                <strong>72시간</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">ESS 전략:</small><br>
+                                                <strong>비용 최적화</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">안전 여유율:</small><br>
+                                                <strong>15%</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">그리드 연계:</small><br>
+                                                <strong>활성</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 에이전트 5: 수요 제어 알고리즘 -->
+                        <div class="agent-item enabled" id="agent-demand-control">
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <div class="text-center">
+                                        <i class="fas fa-sliders-h fa-2x text-success"></i>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-1">수요 제어 알고리즘 MCP</h5>
+                                    <p class="mb-0 text-muted">Demand Control Algorithm MCP</p>
+                                    <small class="text-muted">수요-공급 매칭, 피크 억제, 부하 제어</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="status-badge status-active">✅ 활성</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        <small class="text-muted">정확도: 91%</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill green" style="width: 91%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted">예측 수: 567</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill green" style="width: 40%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">응답시간: 0.2s</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill yellow" style="width: 80%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-agent btn-sm" onclick="toggleAgent('demand-control')">
+                                        <i class="fas fa-pause"></i> 비활성화
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm mt-1" onclick="toggleDetails('demand-control')">
+                                        <i class="fas fa-cog"></i> 설정
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 상세 설정 -->
+                            <div class="expandable" id="details-demand-control">
+                                <hr class="my-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-tools text-primary"></i> 도구 및 기능</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success"></i> 수요반응(DR) 최적화</li>
+                                            <li><i class="fas fa-check text-success"></i> 피크 시프팅 알고리즘</li>
+                                            <li><i class="fas fa-check text-success"></i> 부하 우선순위 관리</li>
+                                            <li><i class="fas fa-check text-success"></i> 제어 시뮬레이터</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-cog text-primary"></i> 에이전트 설정</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small class="text-muted">피크 임계값:</small><br>
+                                                <strong>150 kW</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">전환 윈도우:</small><br>
+                                                <strong>2시간</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">우선순위 레벨:</small><br>
+                                                <strong>3단계</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">사용자 오버라이드:</small><br>
+                                                <strong>허용</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 에이전트 6: 전력/탄소 거래 -->
+                        <div class="agent-item enabled" id="agent-trading">
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <div class="text-center">
+                                        <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-1">전력/탄소 거래 MCP</h5>
+                                    <p class="mb-0 text-muted">Power & Carbon Trading MCP</p>
+                                    <small class="text-muted">거래 최적화, 가격 예측, 자동 입찰</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="status-badge status-active">✅ 활성</span>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        <small class="text-muted">정확도: 87%</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill green" style="width: 87%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <small class="text-muted">예측 수: 342</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill green" style="width: 25%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">응답시간: 0.6s</small>
+                                        <div class="metric-bar">
+                                            <div class="metric-fill yellow" style="width: 40%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-agent btn-sm" onclick="toggleAgent('trading')">
+                                        <i class="fas fa-pause"></i> 비활성화
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm mt-1" onclick="toggleDetails('trading')">
+                                        <i class="fas fa-cog"></i> 설정
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 상세 설정 -->
+                            <div class="expandable" id="details-trading">
+                                <hr class="my-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-tools text-primary"></i> 도구 및 기능</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success"></i> 시장 가격 예측 모델</li>
+                                            <li><i class="fas fa-check text-success"></i> 자동 거래 시스템</li>
+                                            <li><i class="fas fa-check text-success"></i> 수익 최적화 알고리즘</li>
+                                            <li><i class="fas fa-check text-success"></i> 탄소 배출 추적</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-cog text-primary"></i> 에이전트 설정</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small class="text-muted">거래 전략:</small><br>
+                                                <strong>균형</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">리스크 수준:</small><br>
+                                                <strong>중간</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">자동 거래:</small><br>
+                                                <strong>활성</strong>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">일일 한도:</small><br>
+                                                <strong>500 EUR</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 성능 모니터링 차트 -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="agent-card">
+                        <h3 class="mb-4">
+                            <i class="fas fa-chart-line text-primary"></i> 
+                            에이전트 성능 추이
+                        </h3>
+                        <div class="chart-container">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="agent-card">
+                        <h3 class="mb-4">
+                            <i class="fas fa-chart-pie text-primary"></i> 
+                            에이전트별 정확도
+                        </h3>
+                        <div class="chart-container">
+                            <canvas id="accuracyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 시스템 리소스 모니터링 -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="agent-card">
+                        <h3 class="mb-4">
+                            <i class="fas fa-server text-primary"></i> 
+                            시스템 리소스 모니터링
+                        </h3>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h5 class="text-primary">CPU 사용률</h5>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div class="progress-bar bg-primary" role="progressbar" style="width: 45%" id="cpuUsage">45%</div>
+                                    </div>
+                                    <small class="text-muted">4.2 GHz / 8 cores</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h5 class="text-success">메모리 사용</h5>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: 62%" id="memoryUsage">62%</div>
+                                    </div>
+                                    <small class="text-muted">7.9 GB / 12.8 GB</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h5 class="text-warning">디스크 I/O</h5>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 28%" id="diskUsage">28%</div>
+                                    </div>
+                                    <small class="text-muted">280 MB/s</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h5 class="text-info">네트워크</h5>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: 35%" id="networkUsage">35%</div>
+                                    </div>
+                                    <small class="text-muted">150 Mbps</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // 사이트 선택
+            function selectSite(siteId) {{
+                // 모든 사이트 옵션에서 active 클래스 제거
+                document.querySelectorAll('.site-option').forEach(option => {{
+                    option.classList.remove('active');
+                }});
+                
+                // 선택된 사이트에 active 클래스 추가
+                event.target.closest('.site-option').classList.add('active');
+                
+                // 사이트별 에이전트 설정 로드 (실제 구현에서는 API 호출)
+                loadSiteAgents(siteId);
+            }}
+            
+            // 에이전트 활성화/비활성화
+            function toggleAgent(agentId) {{
+                const agentElement = document.getElementById(`agent-${{agentId}}`);
+                const button = agentElement.querySelector('button');
+                const statusBadge = agentElement.querySelector('.status-badge');
+                
+                if (agentElement.classList.contains('enabled')) {{
+                    // 비활성화
+                    agentElement.classList.remove('enabled');
+                    agentElement.classList.add('disabled');
+                    button.innerHTML = '<i class="fas fa-play"></i> 활성화';
+                    statusBadge.innerHTML = '⏸️ 비활성';
+                    statusBadge.className = 'status-badge status-inactive';
+                }} else {{
+                    // 활성화
+                    agentElement.classList.remove('disabled');
+                    agentElement.classList.add('enabled');
+                    button.innerHTML = '<i class="fas fa-pause"></i> 비활성화';
+                    statusBadge.innerHTML = '✅ 활성';
+                    statusBadge.className = 'status-badge status-active';
+                }}
+                
+                updateAgentStats();
+            }}
+            
+            // 상세 설정 토글
+            function toggleDetails(agentId) {{
+                const detailsElement = document.getElementById(`details-${{agentId}}`);
+                detailsElement.classList.toggle('expanded');
+            }}
+            
+            // 사이트별 에이전트 설정 로드
+            function loadSiteAgents(siteId) {{
+                // 실제 구현에서는 API에서 사이트별 설정을 가져옴
+                console.log(`Loading agents for site: ${{siteId}}`);
+                
+                // 사이트별 권장 설정 적용
+                const siteConfigs = {{
+                    'oulu': {{
+                        recommended: ['demand-analysis', 'supply-analysis', 'demand-control', 'trading'],
+                        optional: ['ml-performance']
+                    }},
+                    'kth': {{
+                        recommended: ['demand-analysis', 'ml-performance', 'supply-analysis', 'demand-control', 'trading', 'ontology'],
+                        optional: []
+                    }},
+                    'beia': {{
+                        recommended: ['demand-analysis', 'supply-analysis', 'demand-control', 'trading', 'ontology'],
+                        optional: ['ml-performance']
+                    }},
+                    'triaena': {{
+                        recommended: ['supply-analysis', 'demand-control', 'trading', 'demand-analysis'],
+                        optional: ['ml-performance']
+                    }}
+                }};
+                
+                const config = siteConfigs[siteId];
+                if (config) {{
+                    // 모든 에이전트를 비활성화
+                    document.querySelectorAll('.agent-item').forEach(agent => {{
+                        agent.classList.remove('enabled');
+                        agent.classList.add('disabled');
+                        const button = agent.querySelector('button');
+                        const statusBadge = agent.querySelector('.status-badge');
+                        button.innerHTML = '<i class="fas fa-play"></i> 활성화';
+                        statusBadge.innerHTML = '⏸️ 비활성';
+                        statusBadge.className = 'status-badge status-inactive';
+                    }});
+                    
+                    // 권장 에이전트 활성화
+                    config.recommended.forEach(agentId => {{
+                        const agentElement = document.getElementById(`agent-${{agentId}}`);
+                        if (agentElement) {{
+                            agentElement.classList.remove('disabled');
+                            agentElement.classList.add('enabled');
+                            const button = agentElement.querySelector('button');
+                            const statusBadge = agentElement.querySelector('.status-badge');
+                            button.innerHTML = '<i class="fas fa-pause"></i> 비활성화';
+                            statusBadge.innerHTML = '✅ 활성';
+                            statusBadge.className = 'status-badge status-active';
+                        }}
+                    }});
+                    
+                    updateAgentStats();
+                }}
+            }}
+            
+            // 에이전트 통계 업데이트
+            function updateAgentStats() {{
+                const enabledAgents = document.querySelectorAll('.agent-item.enabled').length;
+                const totalAgents = document.querySelectorAll('.agent-item').length;
+                
+                document.getElementById('activeAgents').textContent = enabledAgents;
+                
+                // 평균 정확도 계산 (실제 구현에서는 API에서 가져옴)
+                const accuracies = [94, 92, 89, 91, 87]; // 예시 데이터
+                const avgAccuracy = Math.round(accuracies.reduce((a, b) => a + b, 0) / accuracies.length);
+                document.getElementById('avgAccuracy').textContent = avgAccuracy + '%';
+            }}
+            
+            // 성능 차트 초기화
+            function initPerformanceChart() {{
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                new Chart(ctx, {{
+                    type: 'line',
+                    data: {{
+                        labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                        datasets: [{{
+                            label: '에너지 수요 분석',
+                            data: [92, 88, 95, 94, 91, 89],
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4
+                        }}, {{
+                            label: 'AI/ML 성능 평가',
+                            data: [90, 89, 92, 91, 90, 88],
+                            borderColor: '#8b5cf6',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            tension: 0.4
+                        }}, {{
+                            label: '에너지 공급 분석',
+                            data: [87, 85, 89, 88, 86, 84],
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            tension: 0.4
+                        }}, {{
+                            label: '수요 제어 알고리즘',
+                            data: [89, 87, 91, 90, 88, 86],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4
+                        }}, {{
+                            label: '전력/탄소 거래',
+                            data: [85, 83, 87, 86, 84, 82],
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.4
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {{
+                            y: {{
+                                beginAtZero: true,
+                                max: 100
+                            }}
+                        }},
+                        plugins: {{
+                            legend: {{
+                                position: 'bottom'
+                            }}
+                        }}
+                    }}
+                }});
+            }}
+            
+            // 정확도 차트 초기화
+            function initAccuracyChart() {{
+                const ctx = document.getElementById('accuracyChart').getContext('2d');
+                new Chart(ctx, {{
+                    type: 'doughnut',
+                    data: {{
+                        labels: ['에너지 수요 분석', 'AI/ML 성능 평가', '에너지 공급 분석', '수요 제어 알고리즘', '전력/탄소 거래'],
+                        datasets: [{{
+                            data: [94, 92, 89, 91, 87],
+                            backgroundColor: [
+                                '#3b82f6',
+                                '#8b5cf6',
+                                '#f59e0b',
+                                '#10b981',
+                                '#ef4444'
+                            ],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }}]
+                    }},
+                    options: {{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {{
+                            legend: {{
+                                position: 'bottom'
+                            }}
+                        }}
+                    }}
+                }});
+            }}
+            
+            // 실시간 데이터 업데이트
+            function updateRealTimeData() {{
+                // CPU 사용률 업데이트
+                const cpuUsage = Math.floor(Math.random() * 20 + 35);
+                document.getElementById('cpuUsage').style.width = cpuUsage + '%';
+                document.getElementById('cpuUsage').textContent = cpuUsage + '%';
+                
+                // 메모리 사용률 업데이트
+                const memoryUsage = Math.floor(Math.random() * 15 + 55);
+                document.getElementById('memoryUsage').style.width = memoryUsage + '%';
+                document.getElementById('memoryUsage').textContent = memoryUsage + '%';
+                
+                // 디스크 I/O 업데이트
+                const diskUsage = Math.floor(Math.random() * 20 + 20);
+                document.getElementById('diskUsage').style.width = diskUsage + '%';
+                document.getElementById('diskUsage').textContent = diskUsage + '%';
+                
+                // 네트워크 사용률 업데이트
+                const networkUsage = Math.floor(Math.random() * 20 + 25);
+                document.getElementById('networkUsage').style.width = networkUsage + '%';
+                document.getElementById('networkUsage').textContent = networkUsage + '%';
+            }}
+            
+            // 페이지 로드 시 초기화
+            document.addEventListener('DOMContentLoaded', function() {{
+                initPerformanceChart();
+                initAccuracyChart();
+                updateAgentStats();
+                updateRealTimeData();
+                
+                // 30초마다 실시간 데이터 업데이트
+                setInterval(updateRealTimeData, 30000);
             }});
         </script>
     </body>
