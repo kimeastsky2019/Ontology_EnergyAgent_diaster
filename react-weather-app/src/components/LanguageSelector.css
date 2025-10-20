@@ -1,0 +1,211 @@
+/* Language Selector Styles */
+.language-selector {
+  position: relative;
+  z-index: 1000;
+}
+
+.language-selector .dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.language-selector .dropdown-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  min-width: 120px;
+}
+
+.language-selector .dropdown-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.language-selector .dropdown-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+.language-selector .flag {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.language-selector .language-name {
+  flex: 1;
+  text-align: left;
+}
+
+.language-selector .fa-chevron-down {
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.language-selector .dropdown-toggle[aria-expanded="true"] .fa-chevron-down {
+  transform: rotate(180deg);
+}
+
+.language-selector .dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px 0;
+  margin: 4px 0 0 0;
+  list-style: none;
+  z-index: 1001;
+  max-height: 300px;
+  overflow-y: auto;
+  min-width: 160px;
+}
+
+.language-selector .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #333;
+  position: relative;
+}
+
+.language-selector .dropdown-item:hover {
+  background: #f8f9fa;
+  color: #000;
+}
+
+.language-selector .dropdown-item.active {
+  background: #007bff;
+  color: white;
+}
+
+.language-selector .dropdown-item.active:hover {
+  background: #0056b3;
+}
+
+.language-selector .dropdown-item .flag {
+  font-size: 18px;
+  line-height: 1;
+  width: 20px;
+  text-align: center;
+}
+
+.language-selector .dropdown-item .language-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.language-selector .dropdown-item .fa-check {
+  font-size: 12px;
+  color: #28a745;
+  margin-left: auto;
+}
+
+.language-selector .dropdown-item.active .fa-check {
+  color: white;
+}
+
+/* RTL Support */
+[dir="rtl"] .language-selector .dropdown-toggle {
+  text-align: right;
+}
+
+[dir="rtl"] .language-selector .dropdown-item {
+  text-align: right;
+}
+
+[dir="rtl"] .language-selector .dropdown-item .fa-check {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+/* Dark Theme Support */
+@media (prefers-color-scheme: dark) {
+  .language-selector .dropdown-menu {
+    background: #2d3748;
+    border-color: #4a5568;
+  }
+  
+  .language-selector .dropdown-item {
+    color: #e2e8f0;
+  }
+  
+  .language-selector .dropdown-item:hover {
+    background: #4a5568;
+    color: white;
+  }
+  
+  .language-selector .dropdown-item.active {
+    background: #3182ce;
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .language-selector .dropdown-toggle {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-width: 100px;
+  }
+  
+  .language-selector .dropdown-menu {
+    min-width: 140px;
+  }
+  
+  .language-selector .dropdown-item {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .language-selector .flag {
+    font-size: 14px;
+  }
+}
+
+/* Animation */
+.language-selector .dropdown-menu {
+  animation: fadeInDown 0.3s ease;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Accessibility */
+.language-selector .dropdown-toggle:focus-visible {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.language-selector .dropdown-item:focus {
+  outline: 2px solid #007bff;
+  outline-offset: -2px;
+}

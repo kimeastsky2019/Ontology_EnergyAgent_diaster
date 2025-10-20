@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { Sun, Moon, Cloud, CloudRain, Wind, Thermometer } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const HeaderContainer = styled.header`
   background: rgba(255, 255, 255, 0.1);
@@ -71,6 +72,7 @@ const WeatherIcon = styled(motion.div)`
 `;
 
 const Header = () => {
+  const { t, i18n } = useTranslation();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weatherIcon, setWeatherIcon] = useState('sun');
 
@@ -115,15 +117,15 @@ const Header = () => {
       <Title>
         <Logo>
           {getWeatherIcon()}
-          Weather Analysis
+          {t('title')}
         </Logo>
-        <Subtitle>Real-time Weather Monitoring & Prediction</Subtitle>
+        <Subtitle>{t('subtitle')}</Subtitle>
       </Title>
       
       <StatusBar>
         <StatusItem>
           <StatusIndicator status="online" />
-          <span>Live Data</span>
+          <span>{t('liveData', 'Live Data')}</span>
         </StatusItem>
         
         <StatusItem>
@@ -137,7 +139,7 @@ const Header = () => {
         </StatusItem>
         
         <TimeDisplay>
-          {currentTime.toLocaleTimeString('ko-KR', {
+          {currentTime.toLocaleTimeString(i18n.language, {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit'

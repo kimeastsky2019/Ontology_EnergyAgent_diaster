@@ -4,6 +4,8 @@ import styled from 'styled-components';
 import SimpleWeatherDashboard from './components/SimpleWeatherDashboard';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import LanguageSelector from './components/LanguageSelector';
+import './i18n';
 
 const AppContainer = styled.div`
   display: flex;
@@ -36,6 +38,9 @@ function App() {
         <Sidebar />
         <MainContent>
           <Header />
+          <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 1000 }}>
+            <LanguageSelector />
+          </div>
           <ContentArea>
             <Routes>
               <Route path="/" element={<SimpleWeatherDashboard />} />
