@@ -1700,11 +1700,11 @@ async def trading_ai_page(request: Request, lang: str = Query("ko", description=
                 list.innerHTML = notifData.map(n => `
                     <div class="p-3 border-bottom">
                         <div class="d-flex">
-                            <span class="badge-dot ${n.type==='urgent'?'bg-danger':(n.type==='success'?'bg-success':'bg-primary')}"></span>
+                            <span class="badge-dot ${{n.type==='urgent'?'bg-danger':(n.type==='success'?'bg-success':'bg-primary')}}"></span>
                             <div class="flex-grow-1">
-                                <div class="fw-semibold">${n.title}</div>
-                                <div class="small text-muted">${n.desc}</div>
-                                <div class="small text-secondary mt-1">${n.time}</div>
+                                <div class="fw-semibold">${{n.title}}</div>
+                                <div class="small text-muted">${{n.desc}}</div>
+                                <div class="small text-secondary mt-1">${{n.time}}</div>
                             </div>
                         </div>
                     </div>`).join('');
@@ -1715,12 +1715,12 @@ async def trading_ai_page(request: Request, lang: str = Query("ko", description=
                 wrap.innerHTML = agents.map((a,i)=>`
                     <div class="p-3 border rounded d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="fw-semibold">[${i+1}단계] ${a.name}</div>
-                            <div class="small text-muted">${a.task}</div>
+                            <div class="fw-semibold">[${{i+1}}단계] ${{a.name}}</div>
+                            <div class="small text-muted">${{a.task}}</div>
                         </div>
                         <div class="text-end">
                             <span class="badge bg-success">정상</span>
-                            <div class="small text-muted mt-1">정확도 ${a.accuracy}</div>
+                            <div class="small text-muted mt-1">정확도 ${{a.accuracy}}</div>
                         </div>
                     </div>`).join('');
             }
@@ -1728,8 +1728,8 @@ async def trading_ai_page(request: Request, lang: str = Query("ko", description=
             function renderChat() {
                 const area = document.getElementById('chatArea');
                 area.innerHTML = messages.map(m=>`
-                    <div class="d-flex ${m.sender==='user'?'justify-content-end':'justify-content-start'} mb-2">
-                        <div class="p-2 rounded ${m.sender==='user'?'bg-primary text-white':'bg-light'}" style="max-width:80%">${m.text.replaceAll('\n','<br>')}</div>
+                    <div class="d-flex ${{m.sender==='user'?'justify-content-end':'justify-content-start'}} mb-2">
+                        <div class="p-2 rounded ${{m.sender==='user'?'bg-primary text-white':'bg-light'}}" style="max-width:80%">${{m.text.replaceAll('\\n','<br>')}}</div>
                     </div>`).join('');
             }
 
@@ -1738,8 +1738,8 @@ async def trading_ai_page(request: Request, lang: str = Query("ko", description=
                 const series = [65,78,85,92,88,95,82,90];
                 bars.innerHTML = series.map((h,idx)=>`
                     <div class="col">
-                        <div class="bg-primary" style="height:${h}%; border-radius:6px;"></div>
-                        <div class="text-center small text-muted mt-1">${9+idx}시</div>
+                        <div class="bg-primary" style="height:${{h}}%; border-radius:6px;"></div>
+                        <div class="text-center small text-muted mt-1">${{9+idx}}시</div>
                     </div>`).join('');
             }
 
