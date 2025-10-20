@@ -354,11 +354,6 @@ def generate_navigation(current_lang='ko'):
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/agent-system?lang={current_lang}">
-                                <i class="fas fa-robot"></i> AI 에이전트 시스템
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link" href="/health?lang={current_lang}">
                                 <i class="fas fa-heartbeat"></i> {t('navigation.health', current_lang)}
                             </a>
@@ -1860,15 +1855,11 @@ async def get_user_info(session_token: str = Query(...)):
     })
 
 @web_app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, lang: str = Query("ko", description="Language code"), logged_in: bool = Query(False, description="User login status")):
+async def dashboard(request: Request, lang: str = Query("ko", description="Language code")):
     """메인 대시보드 페이지"""
     # 언어 설정
     if lang not in get_available_languages():
         lang = "ko"
-    
-    # 로그인하지 않은 경우 로그인 페이지로 리다이렉트
-    if not logged_in:
-        return RedirectResponse(url=f"/login?lang={lang}")
     
     return f"""
     <!DOCTYPE html>
@@ -1900,22 +1891,6 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
             .status-online {{ background-color: #28a745; }}
             .status-offline {{ background-color: #dc3545; }}
             
-            /* AI 에이전트 시스템 스타일 */
-            .site-option {{
-                cursor: pointer;
-                transition: all 0.3s ease;
-            }}
-            .site-option:hover {{
-                border-color: #0d6efd !important;
-                background-color: #f8f9fa !important;
-            }}
-            .site-option.active {{
-                border-color: #0d6efd !important;
-                background-color: #e7f1ff !important;
-            }}
-            .agent-item {{
-                transition: all 0.3s ease;
-            }}
             .agent-item:hover {{
                 transform: translateX(5px);
                 box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
@@ -2056,23 +2031,6 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                     </div>
                 </div>
 
-                <!-- AI 에이전트 시스템 카드 -->
-                <div class="col-md-2 mb-4">
-                    <div class="card energy-card h-100">
-                        <div class="card-body text-center">
-                            <div class="mb-3">
-                                <i class="fas fa-robot text-primary" style="font-size: 2.5rem;"></i>
-                            </div>
-                            <h6 class="card-title">AI 에이전트 시스템</h6>
-                            <p class="card-text small text-muted mb-3">
-                                HORIZON Multi-Site Energy Management AI Agents
-                            </p>
-                            <a href="#agent-system" class="btn btn-primary btn-sm w-100" onclick="scrollToSection('agent-system')">
-                                <i class="fas fa-arrow-right"></i> AI 에이전트 시스템
-                            </a>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Energy Trading 카드 -->
                 <div class="col-md-2 mb-4">
@@ -2694,7 +2652,6 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
             // 페이지 로드 시 차트 초기화
             document.addEventListener('DOMContentLoaded', function() {{
                 initEnergyChart();
-                loadUserInfo();
             }});
         </script>
     </body>
