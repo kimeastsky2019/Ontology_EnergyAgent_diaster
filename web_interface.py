@@ -1146,14 +1146,19 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
             }}
 
             function selectSite(siteId) {{
-                // 모든 사이트 옵션에서 active 클래스 제거
+                // 모든 카드 비활성화 처리
                 document.querySelectorAll('.site-option').forEach(option => {{
                     option.classList.remove('active');
+                    option.classList.add('inactive');
                 }});
-                
-                // 선택된 사이트에 active 클래스 추가
-                event.target.closest('.site-option').classList.add('active');
-                
+
+                // 선택 카드 활성화 처리
+                const selected = event.target.closest('.site-option');
+                if (selected) {{
+                    selected.classList.remove('inactive');
+                    selected.classList.add('active');
+                }}
+
                 // 사이트별 에이전트 설정 로드 (실제 구현에서는 API 호출)
                 loadSiteAgents(siteId);
             }}
@@ -10669,16 +10674,26 @@ async def agent_system_page(request: Request, lang: str = Query("ko", descriptio
                 margin: 10px 0;
                 cursor: pointer;
                 transition: all 0.3s ease;
+                background: #ffffff;
             }}
             
             .site-option:hover {{
                 border-color: var(--primary-color);
                 background: #f8fafc;
+                box-shadow: 0 6px 18px rgba(79, 70, 229, 0.12);
+                transform: translateY(-2px);
             }}
             
             .site-option.active {{
                 border-color: var(--primary-color);
                 background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+                box-shadow: 0 8px 22px rgba(79, 70, 229, 0.18);
+                transform: translateY(-3px);
+            }}
+
+            .site-option.inactive {{
+                opacity: 0.65;
+                filter: grayscale(10%);
             }}
             
             .chart-container {{
