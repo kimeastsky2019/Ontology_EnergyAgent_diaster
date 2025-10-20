@@ -4,25 +4,177 @@
 Health 카드와 메뉴에 기존 페이지들을 연결한 플랫폼
 """
 
-from fastapi import FastAPI, Request, Query, Body, HTTPException
-from fastapi.responses import HTMLResponse
-from datetime import datetime
+from fastapi import FastAPI, Request, Query, Body, HTTPException, Form, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from datetime import datetime, timedelta
 from typing import Optional
 import uvicorn
+import hashlib
+import secrets
+import sqlite3
+import json
+import re
 
 # FastAPI 앱 생성
 web_app = FastAPI(title="Digital Experience Intelligence Platform", version="2.0.0")
 
+# 데이터베이스 초기화
+def init_database():
+    """SQLite 데이터베이스 초기화"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    # 사용자 테이블 생성
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            name TEXT NOT NULL,
+            role TEXT DEFAULT 'user',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active BOOLEAN DEFAULT 1,
+            email_verified BOOLEAN DEFAULT 0
+        )
+    ''')
+    
+    # 세션 테이블 생성
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_token TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            is_active BOOLEAN DEFAULT 1,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # 기본 관리자 계정 생성
+    admin_password = hashlib.sha256("admin123!".encode()).hexdigest()
+    cursor.execute('''
+        INSERT OR IGNORE INTO users (email, password_hash, name, role, email_verified)
+        VALUES (?, ?, ?, ?, ?)
+    ''', ("admin@horizon.com", admin_password, "시스템 관리자", "admin", 1))
+    
+    # 데모 사용자 계정 생성
+    demo_password = hashlib.sha256("demo123!".encode()).hexdigest()
+    cursor.execute('''
+        INSERT OR IGNORE INTO users (email, password_hash, name, role, email_verified)
+        VALUES (?, ?, ?, ?, ?)
+    ''', ("demo@horizon.com", demo_password, "데모 사용자", "user", 1))
+    
+    conn.commit()
+    conn.close()
+
+# 데이터베이스 초기화 실행
+init_database()
+
+# 세션 관리 (메모리 기반, 실제 운영에서는 Redis 사용)
+active_sessions = {}
 
 def get_available_languages():
     """사용 가능한 언어 목록 반환"""
-    return ["ko", "en", "ja", "zh", "ar", "he", "es", "fr", "de", "ru"]
+    return ["ko", "en", "ja", "zh"]
 
-def is_rtl_language(lang):
-    """RTL 언어 여부 확인"""
-    rtl_languages = ["ar", "he", "fa", "ur"]
-    return lang in rtl_languages
+def validate_email(email):
+    """이메일 형식 검증"""
+    # 더 관대한 이메일 패턴 (한국어 도메인 포함)
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z가-힣]{2,}$'
+    return re.match(pattern, email) is not None
 
+def validate_password(password):
+    """비밀번호 강도 검증"""
+    if len(password) < 8:
+        return False, "비밀번호는 최소 8자 이상이어야 합니다."
+    if not re.search(r'[A-Za-z]', password):
+        return False, "비밀번호는 영문자를 포함해야 합니다."
+    if not re.search(r'\d', password):
+        return False, "비밀번호는 숫자를 포함해야 합니다."
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False, "비밀번호는 특수문자를 포함해야 합니다."
+    return True, "유효한 비밀번호입니다."
+
+def get_user_by_email(email):
+    """이메일로 사용자 조회"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE email = ? AND is_active = 1', (email,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+def create_user(email, password, name, role='user'):
+    """새 사용자 생성"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO users (email, password_hash, name, role, email_verified)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (email, password_hash, name, role, 0))
+        
+        user_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return True, user_id, "회원가입이 완료되었습니다."
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False, None, "이미 존재하는 이메일입니다."
+    except Exception as e:
+        conn.close()
+        return False, None, f"회원가입 중 오류가 발생했습니다: {str(e)}"
+
+def create_session(user_id, expires_hours=24):
+    """세션 생성"""
+    session_token = secrets.token_urlsafe(32)
+    expires_at = datetime.now() + timedelta(hours=expires_hours)
+    
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO sessions (session_token, user_id, expires_at)
+        VALUES (?, ?, ?)
+    ''', (session_token, user_id, expires_at))
+    
+    conn.commit()
+    conn.close()
+    
+    return session_token, expires_at
+
+def get_session(session_token):
+    """세션 조회"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT s.*, u.email, u.name, u.role
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.session_token = ? AND s.is_active = 1 AND s.expires_at > ?
+    ''', (session_token, datetime.now()))
+    
+    session = cursor.fetchone()
+    conn.close()
+    return session
+
+def invalidate_session(session_token):
+    """세션 무효화"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        UPDATE sessions SET is_active = 0 WHERE session_token = ?
+    ''', (session_token,))
+    
+    conn.commit()
+    conn.close()
 
 def load_translations():
     """번역 파일 로드"""
@@ -129,51 +281,29 @@ def format_percentage(num, lang='ko'):
 def generate_language_selector(current_lang='ko'):
     """언어 선택기 HTML 생성"""
     languages = {
-        'ko': {'name': '한국어', 'flag': '🇰🇷', 'native': '한국어'},
-        'en': {'name': 'English', 'flag': '🇺🇸', 'native': 'English'},
-        'ja': {'name': '日本語', 'flag': '🇯🇵', 'native': '日本語'},
-        'zh': {'name': '中文', 'flag': '🇨🇳', 'native': '中文'},
-        'ar': {'name': 'العربية', 'flag': '🇸🇦', 'native': 'العربية'},
-        'he': {'name': 'עברית', 'flag': '🇮🇱', 'native': 'עברית'},
-        'es': {'name': 'Español', 'flag': '🇪🇸', 'native': 'Español'},
-        'fr': {'name': 'Français', 'flag': '🇫🇷', 'native': 'Français'},
-        'de': {'name': 'Deutsch', 'flag': '🇩🇪', 'native': 'Deutsch'},
-        'ru': {'name': 'Русский', 'flag': '🇷🇺', 'native': 'Русский'}
+        'ko': {'name': '한국어', 'flag': '🇰🇷'},
+        'en': {'name': 'English', 'flag': '🇺🇸'},
+        'ja': {'name': '日本語', 'flag': '🇯🇵'},
+        'zh': {'name': '中文', 'flag': '🇨🇳'}
     }
     
-    # 현재 언어 정보
-    current_info = languages.get(current_lang, languages['ko'])
-    
-    # 드롭다운 메뉴 아이템들
-    dropdown_items = []
+    buttons = []
     for code, info in languages.items():
-        active_class = 'active' if code == current_lang else ''
-        dropdown_items.append(f'''
-            <li>
-                <a class="dropdown-item {active_class}" 
-                   href="#" 
-                   onclick="switchLanguage('{code}')"
-                   data-lang="{code}">
-                    <span class="me-2">{info['flag']}</span>
-                    <span>{info['native']}</span>
-                </a>
-            </li>
+        active_class = 'btn-primary' if code == current_lang else 'btn-outline-primary'
+        buttons.append(f'''
+            <button type="button" 
+                    class="btn btn-sm {active_class}"
+                    onclick="switchLanguage('{code}')"
+                    data-lang="{code}"
+                    title="{info['name']}">
+                {info['flag']}
+            </button>
         ''')
     
     return f'''
         <div class="language-selector">
-            <div class="dropdown">
-                <button class="btn btn-outline-light dropdown-toggle" 
-                        type="button" 
-                        id="languageDropdown" 
-                        data-bs-toggle="dropdown" 
-                        aria-expanded="false">
-                    <span class="me-2">{current_info['flag']}</span>
-                    <span>{current_info['native']}</span>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="languageDropdown">
-                    {''.join(dropdown_items)}
-                </ul>
+            <div class="btn-group" role="group">
+                {''.join(buttons)}
             </div>
         </div>
     '''
@@ -228,6 +358,17 @@ def generate_navigation(current_lang='ko'):
                                 <i class="fas fa-heartbeat"></i> {t('navigation.health', current_lang)}
                             </a>
                         </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user-circle"></i> <span id="userName">사용자</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                <li><a class="dropdown-item" href="#" onclick="showUserProfile()"><i class="fas fa-user"></i> 프로필</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="showSettings()"><i class="fas fa-cog"></i> 설정</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> 로그아웃</a></li>
+                            </ul>
+                        </li>
                     </ul>
                     
                     <div class="navbar-nav">
@@ -238,8 +379,1480 @@ def generate_navigation(current_lang='ko'):
         </nav>
     '''
 
+@web_app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, lang: str = Query("ko", description="Language code")):
+    """사용자 로그인 랜딩 페이지"""
+    # 언어 설정
+    if lang not in get_available_languages():
+        lang = "ko"
+    
+    return f"""
+    <!DOCTYPE html>
+    <html lang="{lang}">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🔐 HORIZON Energy Platform - 로그인</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            :root {{
+                --primary-color: #4f46e5;
+                --secondary-color: #06b6d4;
+                --success-color: #10b981;
+                --warning-color: #f59e0b;
+                --danger-color: #ef4444;
+                --dark-color: #1e293b;
+                --light-color: #f8fafc;
+            }}
+            
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
+            body {{
+                font-family: 'Inter', sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }}
+            
+            .login-container {{
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(20px);
+                border-radius: 24px;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                padding: 0;
+                max-width: 1000px;
+                width: 100%;
+                overflow: hidden;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }}
+            
+            .login-left {{
+                background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+                color: white;
+                padding: 60px 40px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-height: 600px;
+            }}
+            
+            .login-right {{
+                padding: 60px 40px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-height: 600px;
+            }}
+            
+            .logo {{
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }}
+            
+            .tagline {{
+                font-size: 1.2rem;
+                opacity: 0.9;
+                margin-bottom: 30px;
+                line-height: 1.6;
+            }}
+            
+            .features {{
+                list-style: none;
+                margin-bottom: 40px;
+            }}
+            
+            .features li {{
+                display: flex;
+                align-items: center;
+                margin-bottom: 15px;
+                font-size: 1rem;
+                opacity: 0.9;
+            }}
+            
+            .features i {{
+                margin-right: 12px;
+                font-size: 1.1rem;
+                width: 20px;
+            }}
+            
+            .login-form {{
+                width: 100%;
+                max-width: 400px;
+                margin: 0 auto;
+            }}
+            
+            .form-title {{
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--dark-color);
+                margin-bottom: 10px;
+                text-align: center;
+            }}
+            
+            .form-subtitle {{
+                color: #6b7280;
+                text-align: center;
+                margin-bottom: 40px;
+                font-size: 1rem;
+            }}
+            
+            .form-group {{
+                margin-bottom: 25px;
+            }}
+            
+            .form-label {{
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 500;
+                color: var(--dark-color);
+                font-size: 0.9rem;
+            }}
+            
+            .form-control {{
+                width: 100%;
+                padding: 15px 20px;
+                border: 2px solid #e5e7eb;
+                border-radius: 12px;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+                background: #f9fafb;
+            }}
+            
+            .form-control:focus {{
+                outline: none;
+                border-color: var(--primary-color);
+                background: white;
+                box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            }}
+            
+            .btn-login {{
+                width: 100%;
+                padding: 15px;
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin-bottom: 20px;
+            }}
+            
+            .btn-login:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+            }}
+            
+            .divider {{
+                text-align: center;
+                margin: 30px 0;
+                position: relative;
+                color: #6b7280;
+                font-size: 0.9rem;
+            }}
+            
+            .divider::before {{
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                height: 1px;
+                background: #e5e7eb;
+            }}
+            
+            .divider span {{
+                background: white;
+                padding: 0 20px;
+                position: relative;
+            }}
+            
+            .social-login {{
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }}
+            
+            .btn-social {{
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 15px;
+                border: 2px solid #e5e7eb;
+                border-radius: 12px;
+                background: white;
+                color: var(--dark-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                cursor: pointer;
+            }}
+            
+            .btn-social:hover {{
+                border-color: var(--primary-color);
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+                color: var(--primary-color);
+            }}
+            
+            .btn-google {{
+                border-color: #db4437;
+                color: #db4437;
+            }}
+            
+            .btn-google:hover {{
+                background: #db4437;
+                color: white;
+            }}
+            
+            .btn-apple {{
+                border-color: #000;
+                color: #000;
+            }}
+            
+            .btn-apple:hover {{
+                background: #000;
+                color: white;
+            }}
+            
+            .btn-facebook {{
+                border-color: #1877f2;
+                color: #1877f2;
+            }}
+            
+            .btn-facebook:hover {{
+                background: #1877f2;
+                color: white;
+            }}
+            
+            .social-icon {{
+                margin-right: 12px;
+                font-size: 1.2rem;
+            }}
+            
+            .forgot-password {{
+                text-align: center;
+                margin-top: 20px;
+            }}
+            
+            .forgot-password a {{
+                color: var(--primary-color);
+                text-decoration: none;
+                font-size: 0.9rem;
+            }}
+            
+            .forgot-password a:hover {{
+                text-decoration: underline;
+            }}
+            
+            .signup-link {{
+                text-align: center;
+                margin-top: 30px;
+                color: #6b7280;
+                font-size: 0.9rem;
+            }}
+            
+            .signup-link a {{
+                color: var(--primary-color);
+                text-decoration: none;
+                font-weight: 500;
+            }}
+            
+            .signup-link a:hover {{
+                text-decoration: underline;
+            }}
+            
+            .demo-badge {{
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                background: var(--success-color);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-size: 0.8rem;
+                font-weight: 600;
+            }}
+            
+            .language-selector {{
+                position: absolute;
+                top: 20px;
+                left: 20px;
+            }}
+            
+            .language-selector select {{
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 8px;
+                font-size: 0.9rem;
+            }}
+            
+            .language-selector select option {{
+                background: var(--dark-color);
+                color: white;
+            }}
+            
+            @media (max-width: 768px) {{
+                .login-container {{
+                    flex-direction: column;
+                }}
+                
+                .login-left {{
+                    min-height: 300px;
+                    padding: 40px 30px;
+                }}
+                
+                .login-right {{
+                    padding: 40px 30px;
+                }}
+                
+                .logo {{
+                    font-size: 2rem;
+                }}
+                
+                .form-title {{
+                    font-size: 1.5rem;
+                }}
+            }}
+            
+            .floating-animation {{
+                animation: float 6s ease-in-out infinite;
+            }}
+            
+            @keyframes float {{
+                0%, 100% {{ transform: translateY(0px); }}
+                50% {{ transform: translateY(-20px); }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="language-selector">
+            <select onchange="changeLanguage(this.value)">
+                <option value="ko" {'selected' if lang == 'ko' else ''}>🇰🇷 한국어</option>
+                <option value="en" {'selected' if lang == 'en' else ''}>🇺🇸 English</option>
+                <option value="ja" {'selected' if lang == 'ja' else ''}>🇯🇵 日本語</option>
+                <option value="zh" {'selected' if lang == 'zh' else ''}>🇨🇳 中文</option>
+            </select>
+        </div>
+        
+        <div class="demo-badge">
+            <i class="fas fa-rocket"></i> DEMO VERSION
+        </div>
+        
+        <div class="login-container">
+            <div class="row g-0 h-100">
+                <div class="col-lg-6">
+                    <div class="login-left">
+                        <div class="logo floating-animation">
+                            <i class="fas fa-bolt"></i>
+                            HORIZON Energy
+                        </div>
+                        <div class="tagline">
+                            AI 기반 에너지 관리 플랫폼으로<br>
+                            지속가능한 미래를 만들어가세요
+                        </div>
+                        <ul class="features">
+                            <li>
+                                <i class="fas fa-robot"></i>
+                                AI 에이전트 기반 자동 에너지 최적화
+                            </li>
+                            <li>
+                                <i class="fas fa-chart-line"></i>
+                                실시간 에너지 분석 및 예측
+                            </li>
+                            <li>
+                                <i class="fas fa-exchange-alt"></i>
+                                P2P 전력 거래 및 탄소 크레딧 시스템
+                            </li>
+                            <li>
+                                <i class="fas fa-globe"></i>
+                                글로벌 멀티사이트 에너지 관리
+                            </li>
+                            <li>
+                                <i class="fas fa-shield-alt"></i>
+                                엔터프라이즈급 보안 및 데이터 보호
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="login-right">
+                        <div class="login-form">
+                            <h2 class="form-title">환영합니다!</h2>
+                            <p class="form-subtitle">HORIZON Energy Platform에 로그인하세요</p>
+                            
+                            <form id="loginForm">
+                                <div class="form-group">
+                                    <label class="form-label" for="email">이메일 주소</label>
+                                    <input type="email" class="form-control" id="email" placeholder="your@email.com" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="password">비밀번호</label>
+                                    <input type="password" class="form-control" id="password" placeholder="비밀번호를 입력하세요" required>
+                                </div>
+                                
+                                <button type="submit" class="btn-login">
+                                    <i class="fas fa-sign-in-alt"></i>
+                                    로그인
+                                </button>
+                            </form>
+                            
+                            <div class="divider">
+                                <span>또는 소셜 계정으로 로그인</span>
+                            </div>
+                            
+                            <div class="social-login">
+                                <a href="#" class="btn-social btn-google" onclick="socialLogin('google')">
+                                    <i class="fab fa-google social-icon"></i>
+                                    Google로 계속하기
+                                </a>
+                                
+                                <a href="#" class="btn-social btn-apple" onclick="socialLogin('apple')">
+                                    <i class="fab fa-apple social-icon"></i>
+                                    Apple로 계속하기
+                                </a>
+                                
+                                <a href="#" class="btn-social btn-facebook" onclick="socialLogin('facebook')">
+                                    <i class="fab fa-facebook-f social-icon"></i>
+                                    Facebook으로 계속하기
+                                </a>
+                            </div>
+                            
+                            <div class="forgot-password">
+                                <a href="#" onclick="forgotPassword()">비밀번호를 잊으셨나요?</a>
+                            </div>
+                            
+                            <div class="signup-link">
+                                계정이 없으신가요? <a href="#" onclick="showSignup()">회원가입</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // 언어 변경
+            function changeLanguage(lang) {{
+                window.location.href = `/login?lang=${{lang}}`;
+            }}
+            
+            // 로그인 폼 처리
+            document.getElementById('loginForm').addEventListener('submit', async function(e) {{
+                e.preventDefault();
+                
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                if (!email || !password) {{
+                    alert('이메일과 비밀번호를 입력해주세요.');
+                    return;
+                }}
+                
+                showLoading();
+                
+                try {{
+                    const formData = new FormData();
+                    formData.append('email', email);
+                    formData.append('password', password);
+                    
+                    const response = await fetch('/api/login', {{
+                        method: 'POST',
+                        body: formData
+                    }});
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {{
+                        // 세션 토큰을 로컬 스토리지에 저장
+                        localStorage.setItem('session_token', result.session_token);
+                        localStorage.setItem('user_info', JSON.stringify(result.user));
+                        
+                        // 성공 메시지 표시
+                        alert(`환영합니다, ${{result.user.name}}님!`);
+                        
+                        // 메인 페이지로 리다이렉트
+                        window.location.href = '/?lang={lang}&logged_in=true';
+                    }} else {{
+                        alert(result.message);
+                        hideLoading();
+                    }}
+                }} catch (error) {{
+                    console.error('로그인 오류:', error);
+                    alert('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+                    hideLoading();
+                }}
+            }});
+            
+            // 소셜 로그인
+            function socialLogin(provider) {{
+                showLoading();
+                
+                // 실제 소셜 로그인 구현
+                setTimeout(() => {{
+                    alert(`${{provider}} 로그인이 구현되었습니다!\\n\\n현재는 데모 버전으로 메인 페이지로 이동합니다.`);
+                    window.location.href = '/?lang={lang}';
+                }}, 1500);
+            }}
+            
+            // 비밀번호 찾기
+            function forgotPassword() {{
+                const email = prompt('비밀번호를 재설정할 이메일 주소를 입력하세요:');
+                if (email) {{
+                    alert(`${{email}}로 비밀번호 재설정 링크를 발송했습니다.\\n\\n(데모 버전에서는 실제 발송되지 않습니다)`);
+                }}
+            }}
+            
+            // 회원가입
+            function showSignup() {{
+                window.location.href = '/signup?lang={lang}';
+            }}
+            
+            // 로딩 표시
+            function showLoading() {{
+                const button = document.querySelector('.btn-login');
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 로그인 중...';
+                button.disabled = true;
+            }}
+            
+            // 로딩 숨기기
+            function hideLoading() {{
+                const button = document.querySelector('.btn-login');
+                button.innerHTML = '<i class="fas fa-sign-in-alt"></i> 로그인';
+                button.disabled = false;
+            }}
+            
+            // 페이지 로드 시 애니메이션
+            document.addEventListener('DOMContentLoaded', function() {{
+                const container = document.querySelector('.login-container');
+                container.style.opacity = '0';
+                container.style.transform = 'translateY(50px)';
+                
+                setTimeout(() => {{
+                    container.style.transition = 'all 0.8s ease';
+                    container.style.opacity = '1';
+                    container.style.transform = 'translateY(0)';
+                }}, 100);
+            }});
+        </script>
+    </body>
+    </html>
+    """
 
+@web_app.get("/signup", response_class=HTMLResponse)
+async def signup_page(request: Request, lang: str = Query("ko", description="Language code")):
+    """회원가입 페이지"""
+    # 언어 설정
+    if lang not in get_available_languages():
+        lang = "ko"
+    
+    return f"""
+    <!DOCTYPE html>
+    <html lang="{lang}">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>📝 HORIZON Energy Platform - 회원가입</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            :root {{
+                --primary-color: #4f46e5;
+                --secondary-color: #06b6d4;
+                --success-color: #10b981;
+                --warning-color: #f59e0b;
+                --danger-color: #ef4444;
+                --dark-color: #1e293b;
+                --light-color: #f8fafc;
+            }}
+            
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
+            body {{
+                font-family: 'Inter', sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }}
+            
+            .signup-container {{
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(20px);
+                border-radius: 24px;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                padding: 0;
+                max-width: 1000px;
+                width: 100%;
+                overflow: hidden;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }}
+            
+            .signup-left {{
+                background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+                color: white;
+                padding: 60px 40px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-height: 600px;
+            }}
+            
+            .signup-right {{
+                padding: 60px 40px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-height: 600px;
+            }}
+            
+            .logo {{
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }}
+            
+            .tagline {{
+                font-size: 1.2rem;
+                opacity: 0.9;
+                margin-bottom: 30px;
+                line-height: 1.6;
+            }}
+            
+            .benefits {{
+                list-style: none;
+                margin-bottom: 40px;
+            }}
+            
+            .benefits li {{
+                display: flex;
+                align-items: center;
+                margin-bottom: 15px;
+                font-size: 1rem;
+                opacity: 0.9;
+            }}
+            
+            .benefits i {{
+                margin-right: 12px;
+                font-size: 1.1rem;
+                width: 20px;
+            }}
+            
+            .signup-form {{
+                width: 100%;
+                max-width: 400px;
+                margin: 0 auto;
+            }}
+            
+            .form-title {{
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--dark-color);
+                margin-bottom: 10px;
+                text-align: center;
+            }}
+            
+            .form-subtitle {{
+                color: #6b7280;
+                text-align: center;
+                margin-bottom: 40px;
+                font-size: 1rem;
+            }}
+            
+            .form-group {{
+                margin-bottom: 25px;
+            }}
+            
+            .form-label {{
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 500;
+                color: var(--dark-color);
+                font-size: 0.9rem;
+            }}
+            
+            .form-control {{
+                width: 100%;
+                padding: 15px 20px;
+                border: 2px solid #e5e7eb;
+                border-radius: 12px;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+                background: #f9fafb;
+            }}
+            
+            .form-control:focus {{
+                outline: none;
+                border-color: var(--primary-color);
+                background: white;
+                box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            }}
+            
+            .form-control.error {{
+                border-color: var(--danger-color);
+            }}
+            
+            .form-control.success {{
+                border-color: var(--success-color);
+            }}
+            
+            .error-message {{
+                color: var(--danger-color);
+                font-size: 0.8rem;
+                margin-top: 5px;
+                display: none;
+            }}
+            
+            .success-message {{
+                color: var(--success-color);
+                font-size: 0.8rem;
+                margin-top: 5px;
+                display: none;
+            }}
+            
+            .btn-signup {{
+                width: 100%;
+                padding: 15px;
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin-bottom: 20px;
+            }}
+            
+            .btn-signup:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+            }}
+            
+            .btn-signup:disabled {{
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+            }}
+            
+            .login-link {{
+                text-align: center;
+                margin-top: 30px;
+                color: #6b7280;
+                font-size: 0.9rem;
+            }}
+            
+            .login-link a {{
+                color: var(--primary-color);
+                text-decoration: none;
+                font-weight: 500;
+            }}
+            
+            .login-link a:hover {{
+                text-decoration: underline;
+            }}
+            
+            .password-strength {{
+                margin-top: 5px;
+                font-size: 0.8rem;
+            }}
+            
+            .strength-bar {{
+                height: 4px;
+                background: #e5e7eb;
+                border-radius: 2px;
+                margin-top: 5px;
+                overflow: hidden;
+            }}
+            
+            .strength-fill {{
+                height: 100%;
+                transition: all 0.3s ease;
+                border-radius: 2px;
+            }}
+            
+            .strength-weak {{ background: var(--danger-color); width: 25%; }}
+            .strength-fair {{ background: var(--warning-color); width: 50%; }}
+            .strength-good {{ background: #3b82f6; width: 75%; }}
+            .strength-strong {{ background: var(--success-color); width: 100%; }}
+            
+            .divider {{
+                text-align: center;
+                margin: 30px 0;
+                position: relative;
+                color: #6b7280;
+                font-size: 0.9rem;
+            }}
+            
+            .divider::before {{
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                height: 1px;
+                background: #e5e7eb;
+            }}
+            
+            .divider span {{
+                background: white;
+                padding: 0 20px;
+                position: relative;
+            }}
+            
+            .social-login {{
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }}
+            
+            .btn-social {{
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 15px;
+                border: 2px solid #e5e7eb;
+                border-radius: 12px;
+                background: white;
+                color: var(--dark-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                cursor: pointer;
+            }}
+            
+            .btn-social:hover {{
+                border-color: var(--primary-color);
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+                color: var(--primary-color);
+            }}
+            
+            .btn-google {{
+                border-color: #db4437;
+                color: #db4437;
+            }}
+            
+            .btn-google:hover {{
+                background: #db4437;
+                color: white;
+            }}
+            
+            .btn-apple {{
+                border-color: #000;
+                color: #000;
+            }}
+            
+            .btn-apple:hover {{
+                background: #000;
+                color: white;
+            }}
+            
+            .btn-facebook {{
+                border-color: #1877f2;
+                color: #1877f2;
+            }}
+            
+            .btn-facebook:hover {{
+                background: #1877f2;
+                color: white;
+            }}
+            
+            .social-icon {{
+                margin-right: 12px;
+                font-size: 1.2rem;
+            }}
+            
+            .language-selector {{
+                position: absolute;
+                top: 20px;
+                left: 20px;
+            }}
+            
+            .language-selector select {{
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 8px;
+                font-size: 0.9rem;
+            }}
+            
+            .language-selector select option {{
+                background: var(--dark-color);
+                color: white;
+            }}
+            
+            @media (max-width: 768px) {{
+                .signup-container {{
+                    flex-direction: column;
+                }}
+                
+                .signup-left {{
+                    min-height: 300px;
+                    padding: 40px 30px;
+                }}
+                
+                .signup-right {{
+                    padding: 40px 30px;
+                }}
+                
+                .logo {{
+                    font-size: 2rem;
+                }}
+                
+                .form-title {{
+                    font-size: 1.5rem;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="language-selector">
+            <select onchange="changeLanguage(this.value)">
+                <option value="ko" {'selected' if lang == 'ko' else ''}>🇰🇷 한국어</option>
+                <option value="en" {'selected' if lang == 'en' else ''}>🇺🇸 English</option>
+                <option value="ja" {'selected' if lang == 'ja' else ''}>🇯🇵 日本語</option>
+                <option value="zh" {'selected' if lang == 'zh' else ''}>🇨🇳 中文</option>
+            </select>
+        </div>
+        
+        <div class="signup-container">
+            <div class="row g-0 h-100">
+                <div class="col-lg-6">
+                    <div class="signup-left">
+                        <div class="logo">
+                            <i class="fas fa-user-plus"></i>
+                            HORIZON Energy
+                        </div>
+                        <div class="tagline">
+                            지속가능한 에너지 미래를 위한<br>
+                            첫 걸음을 시작하세요
+                        </div>
+                        <ul class="benefits">
+                            <li>
+                                <i class="fas fa-shield-alt"></i>
+                                안전하고 보안된 계정 관리
+                            </li>
+                            <li>
+                                <i class="fas fa-chart-line"></i>
+                                실시간 에너지 데이터 분석
+                            </li>
+                            <li>
+                                <i class="fas fa-robot"></i>
+                                AI 기반 자동 최적화
+                            </li>
+                            <li>
+                                <i class="fas fa-globe"></i>
+                                글로벌 에너지 거래 플랫폼
+                            </li>
+                            <li>
+                                <i class="fas fa-headset"></i>
+                                24/7 고객 지원
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="signup-right">
+                        <div class="signup-form">
+                            <h2 class="form-title">회원가입</h2>
+                            <p class="form-subtitle">HORIZON Energy Platform에 가입하세요</p>
+                            
+                            <form id="signupForm">
+                                <div class="form-group">
+                                    <label class="form-label" for="name">이름</label>
+                                    <input type="text" class="form-control" id="name" placeholder="홍길동" required>
+                                    <div class="error-message" id="nameError"></div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="email">이메일 주소</label>
+                                    <input type="email" class="form-control" id="email" placeholder="your@email.com" required>
+                                    <div class="error-message" id="emailError"></div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="password">비밀번호</label>
+                                    <input type="password" class="form-control" id="password" placeholder="비밀번호를 입력하세요" required>
+                                    <div class="password-strength" id="passwordStrength"></div>
+                                    <div class="strength-bar">
+                                        <div class="strength-fill" id="strengthBar"></div>
+                                    </div>
+                                    <div class="error-message" id="passwordError"></div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="confirmPassword">비밀번호 확인</label>
+                                    <input type="password" class="form-control" id="confirmPassword" placeholder="비밀번호를 다시 입력하세요" required>
+                                    <div class="error-message" id="confirmPasswordError"></div>
+                                </div>
+                                
+                                <button type="submit" class="btn-signup" id="signupBtn">
+                                    <i class="fas fa-user-plus"></i>
+                                    회원가입
+                                </button>
+                            </form>
+                            
+                            <div class="divider">
+                                <span>또는 소셜 계정으로 가입</span>
+                            </div>
+                            
+                            <div class="social-login">
+                                <a href="#" class="btn-social btn-google" onclick="socialSignup('google')">
+                                    <i class="fab fa-google social-icon"></i>
+                                    Google로 가입하기
+                                </a>
+                                
+                                <a href="#" class="btn-social btn-apple" onclick="socialSignup('apple')">
+                                    <i class="fab fa-apple social-icon"></i>
+                                    Apple로 가입하기
+                                </a>
+                                
+                                <a href="#" class="btn-social btn-facebook" onclick="socialSignup('facebook')">
+                                    <i class="fab fa-facebook-f social-icon"></i>
+                                    Facebook으로 가입하기
+                                </a>
+                            </div>
+                            
+                            <div class="login-link">
+                                이미 계정이 있으신가요? <a href="/login?lang={lang}">로그인</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // 언어 변경
+            function changeLanguage(lang) {{
+                window.location.href = `/signup?lang=${{lang}}`;
+            }}
+            
+            // 비밀번호 강도 검사
+            function checkPasswordStrength(password) {{
+                let score = 0;
+                let feedback = '';
+                
+                if (password.length >= 8) score++;
+                if (/[A-Za-z]/.test(password)) score++;
+                if (/\d/.test(password)) score++;
+                if (/[!@#$%^&*(),.?":{{}}|<>]/.test(password)) score++;
+                
+                const strengthBar = document.getElementById('strengthBar');
+                const strengthText = document.getElementById('passwordStrength');
+                
+                strengthBar.className = 'strength-fill';
+                
+                if (score === 0) {{
+                    strengthBar.classList.add('strength-weak');
+                    feedback = '매우 약함';
+                }} else if (score === 1) {{
+                    strengthBar.classList.add('strength-weak');
+                    feedback = '약함';
+                }} else if (score === 2) {{
+                    strengthBar.classList.add('strength-fair');
+                    feedback = '보통';
+                }} else if (score === 3) {{
+                    strengthBar.classList.add('strength-good');
+                    feedback = '좋음';
+                }} else {{
+                    strengthBar.classList.add('strength-strong');
+                    feedback = '강함';
+                }}
+                
+                strengthText.textContent = `비밀번호 강도: ${{feedback}}`;
+                return score >= 3;
+            }}
+            
+            // 폼 검증
+            function validateForm() {{
+                const name = document.getElementById('name').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                
+                let isValid = true;
+                
+                // 이름 검증
+                if (name.length < 2) {{
+                    showError('nameError', '이름은 최소 2자 이상이어야 합니다.');
+                    isValid = false;
+                }} else {{
+                    hideError('nameError');
+                }}
+                
+                // 이메일 검증 (더 관대한 패턴)
+                const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z가-힣]{2,}$/;
+                if (!emailPattern.test(email)) {{
+                    showError('emailError', '올바른 이메일 형식을 입력해주세요.');
+                    isValid = false;
+                }} else {{
+                    hideError('emailError');
+                }}
+                
+                // 비밀번호 검증
+                if (password.length < 8) {{
+                    showError('passwordError', '비밀번호는 최소 8자 이상이어야 합니다.');
+                    isValid = false;
+                }} else if (!checkPasswordStrength(password)) {{
+                    showError('passwordError', '비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.');
+                    isValid = false;
+                }} else {{
+                    hideError('passwordError');
+                }}
+                
+                // 비밀번호 확인 검증
+                if (password !== confirmPassword) {{
+                    showError('confirmPasswordError', '비밀번호가 일치하지 않습니다.');
+                    isValid = false;
+                }} else {{
+                    hideError('confirmPasswordError');
+                }}
+                
+                return isValid;
+            }}
+            
+            function showError(elementId, message) {{
+                const element = document.getElementById(elementId);
+                element.textContent = message;
+                element.style.display = 'block';
+                element.previousElementSibling.classList.add('error');
+                element.previousElementSibling.classList.remove('success');
+            }}
+            
+            function hideError(elementId) {{
+                const element = document.getElementById(elementId);
+                element.style.display = 'none';
+                element.previousElementSibling.classList.remove('error');
+                element.previousElementSibling.classList.add('success');
+            }}
+            
+            // 소셜 가입
+            function socialSignup(provider) {{
+                const signupBtn = document.getElementById('signupBtn');
+                signupBtn.disabled = true;
+                signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 가입 중...';
+                
+                // 실제 소셜 가입 구현 (현재는 데모)
+                setTimeout(() => {{
+                    alert(`${{provider}} 가입이 구현되었습니다!\\n\\n현재는 데모 버전으로 일반 회원가입을 이용해주세요.`);
+                    signupBtn.disabled = false;
+                    signupBtn.innerHTML = '<i class="fas fa-user-plus"></i> 회원가입';
+                }}, 1500);
+            }}
+            
+            // 이벤트 리스너
+            document.getElementById('password').addEventListener('input', function() {{
+                checkPasswordStrength(this.value);
+            }});
+            
+            document.getElementById('signupForm').addEventListener('submit', async function(e) {{
+                e.preventDefault();
+                
+                if (!validateForm()) {{
+                    return;
+                }}
+                
+                const name = document.getElementById('name').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                
+                const signupBtn = document.getElementById('signupBtn');
+                signupBtn.disabled = true;
+                signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 가입 중...';
+                
+                try {{
+                    const formData = new FormData();
+                    formData.append('name', name);
+                    formData.append('email', email);
+                    formData.append('password', password);
+                    
+                    const response = await fetch('/api/signup', {{
+                        method: 'POST',
+                        body: formData
+                    }});
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {{
+                        alert('회원가입이 완료되었습니다!\\n\\n로그인 페이지로 이동합니다.');
+                        window.location.href = '/login?lang={lang}';
+                    }} else {{
+                        alert(result.message);
+                        signupBtn.disabled = false;
+                        signupBtn.innerHTML = '<i class="fas fa-user-plus"></i> 회원가입';
+                    }}
+                }} catch (error) {{
+                    console.error('회원가입 오류:', error);
+                    alert('회원가입 중 오류가 발생했습니다. 다시 시도해주세요.');
+                    signupBtn.disabled = false;
+                    signupBtn.innerHTML = '<i class="fas fa-user-plus"></i> 회원가입';
+                }}
+            }});
+            
+            // 페이지 로드 시 애니메이션
+            document.addEventListener('DOMContentLoaded', function() {{
+                const container = document.querySelector('.signup-container');
+                container.style.opacity = '0';
+                container.style.transform = 'translateY(50px)';
+                
+                setTimeout(() => {{
+                    container.style.transition = 'all 0.8s ease';
+                    container.style.opacity = '1';
+                    container.style.transform = 'translateY(0)';
+                }}, 100);
+            }});
+        </script>
+    </body>
+    </html>
+    """
 
+@web_app.post("/api/login")
+async def login_api(email: str = Form(...), password: str = Form(...)):
+    """로그인 API 엔드포인트"""
+    # 이메일 형식 검증
+    if not validate_email(email):
+        return JSONResponse({
+            "success": False,
+            "message": "올바른 이메일 형식을 입력해주세요."
+        }, status_code=400)
+    
+    # 사용자 조회
+    user = get_user_by_email(email)
+    if not user:
+        return JSONResponse({
+            "success": False,
+            "message": "이메일 또는 비밀번호가 올바르지 않습니다."
+        }, status_code=401)
+    
+    # 비밀번호 확인
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    if user[2] != password_hash:  # password_hash는 인덱스 2
+        return JSONResponse({
+            "success": False,
+            "message": "이메일 또는 비밀번호가 올바르지 않습니다."
+        }, status_code=401)
+    
+    # 세션 생성
+    session_token, expires_at = create_session(user[0])  # user[0]은 user_id
+    
+    return JSONResponse({
+        "success": True,
+        "message": "로그인 성공",
+        "session_token": session_token,
+        "user": {
+            "id": user[0],
+            "email": user[1],
+            "name": user[2],
+            "role": user[4]
+        }
+    })
+
+@web_app.post("/api/signup")
+async def signup_api(name: str = Form(...), email: str = Form(...), password: str = Form(...)):
+    """회원가입 API 엔드포인트"""
+    # 이메일 형식 검증
+    if not validate_email(email):
+        return JSONResponse({
+            "success": False,
+            "message": "올바른 이메일 형식을 입력해주세요."
+        }, status_code=400)
+    
+    # 비밀번호 강도 검증
+    is_valid_password, password_message = validate_password(password)
+    if not is_valid_password:
+        return JSONResponse({
+            "success": False,
+            "message": password_message
+        }, status_code=400)
+    
+    # 이름 길이 검증
+    if len(name.strip()) < 2:
+        return JSONResponse({
+            "success": False,
+            "message": "이름은 최소 2자 이상이어야 합니다."
+        }, status_code=400)
+    
+    # 사용자 생성
+    success, user_id, message = create_user(email, password, name.strip())
+    
+    if success:
+        return JSONResponse({
+            "success": True,
+            "message": message,
+            "user_id": user_id
+        })
+    else:
+        return JSONResponse({
+            "success": False,
+            "message": message
+        }, status_code=400)
+
+@web_app.post("/api/social-signup")
+async def social_signup_api(provider: str = Form(...), email: str = Form(...), name: str = Form(...), social_id: str = Form(...)):
+    """소셜 회원가입 API 엔드포인트"""
+    # 이메일 형식 검증
+    if not validate_email(email):
+        return JSONResponse({
+            "success": False,
+            "message": "올바른 이메일 형식을 입력해주세요."
+        }, status_code=400)
+    
+    # 이름 길이 검증
+    if len(name.strip()) < 2:
+        return JSONResponse({
+            "success": False,
+            "message": "이름은 최소 2자 이상이어야 합니다."
+        }, status_code=400)
+    
+    # 소셜 ID로 기존 사용자 확인
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    try:
+        # 소셜 계정으로 이미 가입된 사용자인지 확인
+        cursor.execute('SELECT * FROM users WHERE email = ? AND role LIKE ?', (email, f'%{provider}%'))
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            conn.close()
+            return JSONResponse({
+                "success": False,
+                "message": "이미 가입된 소셜 계정입니다."
+            }, status_code=400)
+        
+        # 새 소셜 사용자 생성
+        role = f"user_{provider}"
+        cursor.execute('''
+            INSERT INTO users (email, password_hash, name, role, email_verified)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (email, f"social_{social_id}", name.strip(), role, 1))
+        
+        user_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"{provider} 계정으로 회원가입이 완료되었습니다.",
+            "user_id": user_id
+        })
+        
+    except sqlite3.IntegrityError:
+        conn.close()
+        return JSONResponse({
+            "success": False,
+            "message": "이미 존재하는 이메일입니다."
+        }, status_code=400)
+    except Exception as e:
+        conn.close()
+        return JSONResponse({
+            "success": False,
+            "message": f"소셜 가입 중 오류가 발생했습니다: {str(e)}"
+        }, status_code=500)
+
+@web_app.post("/api/social-login")
+async def social_login_api(provider: str = Form(...), email: str = Form(...), social_id: str = Form(...)):
+    """소셜 로그인 API 엔드포인트"""
+    # 사용자 조회
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM users WHERE email = ? AND role LIKE ? AND is_active = 1', (email, f'%{provider}%'))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if not user:
+        return JSONResponse({
+            "success": False,
+            "message": f"{provider} 계정으로 가입된 사용자가 아닙니다."
+        }, status_code=401)
+    
+    # 세션 생성
+    session_token, expires_at = create_session(user[0])
+    
+    return JSONResponse({
+        "success": True,
+        "message": f"{provider} 로그인 성공",
+        "session_token": session_token,
+        "user": {
+            "id": user[0],
+            "email": user[1],
+            "name": user[3],
+            "role": user[4]
+        }
+    })
+
+@web_app.post("/api/logout")
+async def logout_api(session_token: str = Form(...)):
+    """로그아웃 API 엔드포인트"""
+    # 세션 조회
+    session = get_session(session_token)
+    if not session:
+        return JSONResponse({
+            "success": False,
+            "message": "유효하지 않은 세션"
+        }, status_code=401)
+    
+    # 세션 무효화
+    invalidate_session(session_token)
+    
+    return JSONResponse({
+        "success": True,
+        "message": "로그아웃 성공"
+    })
+
+@web_app.get("/api/user")
+async def get_user_info(session_token: str = Query(...)):
+    """사용자 정보 조회 API"""
+    # 세션 조회
+    session = get_session(session_token)
+    if not session:
+        return JSONResponse({
+            "success": False,
+            "message": "유효하지 않은 세션"
+        }, status_code=401)
+    
+    return JSONResponse({
+        "success": True,
+        "user": {
+            "id": session[2],  # user_id
+            "email": session[6],  # email
+            "name": session[7],  # name
+            "role": session[8]   # role
+        }
+    })
 
 @web_app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, lang: str = Query("ko", description="Language code")):
@@ -248,12 +1861,9 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
     if lang not in get_available_languages():
         lang = "ko"
     
-    # RTL 언어 지원을 위한 dir 속성 설정
-    dir_attr = 'dir="rtl"' if is_rtl_language(lang) else ''
-    
     return f"""
     <!DOCTYPE html>
-    <html lang="{lang}" {dir_attr}>
+    <html lang="{lang}">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -262,224 +1872,14 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/chart.js?v=2.0"></script>
         <style>
-            /* RTL 언어 지원 */
-            [dir="rtl"] {{
-                text-align: right;
-            }}
-            
-            [dir="rtl"] .navbar-nav {{
-                flex-direction: row-reverse;
-            }}
-            
-            [dir="rtl"] .dropdown-menu {{
-                text-align: right;
-            }}
-            
-            [dir="rtl"] .card-text {{
-                text-align: right;
-            }}
-            
-            [dir="rtl"] .btn-group {{
-                flex-direction: row-reverse;
-            }}
-            
-            /* 언어 선택기 스타일 */
-            .language-selector .dropdown-toggle {{
-                border: 1px solid rgba(255,255,255,0.3);
-                background: rgba(255,255,255,0.1);
-                color: white;
-                transition: all 0.3s ease;
-            }}
-            
-            .language-selector .dropdown-toggle:hover {{
-                background: rgba(255,255,255,0.2);
-                border-color: rgba(255,255,255,0.5);
-            }}
-            
-            .language-selector .dropdown-item {{
-                padding: 0.5rem 1rem;
-                transition: all 0.2s ease;
-            }}
-            
-            .language-selector .dropdown-item:hover {{
-                background-color: #f8f9fa;
-            }}
-            
-            .language-selector .dropdown-item.active {{
-                background-color: #0d6efd;
-                color: white;
-            }}
-            
             .energy-card {{
-                transition: all 0.3s ease;
+                transition: transform 0.2s;
                 border: none;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                cursor: pointer;
-                position: relative;
-                overflow: hidden;
             }}
-            
-            .energy-card::before {{
-                content: '';
-                position: absolute;
-                top: 0;
-                left: -100%;
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-                transition: left 0.5s;
-            }}
-            
-            .energy-card:hover::before {{
-                left: 100%;
-            }}
-            
             .energy-card:hover {{
-                transform: translateY(-8px) scale(1.02);
-                box-shadow: 0 12px 30px rgba(0,0,0,0.2);
-            }}
-            
-            .energy-card:active {{
-                transform: translateY(-4px) scale(0.98);
-            }}
-            
-            .energy-card .card-body {{
-                position: relative;
-                z-index: 1;
-            }}
-            
-            .energy-card i {{
-                transition: all 0.3s ease;
-            }}
-            
-            .energy-card:hover i {{
-                transform: scale(1.2) rotate(5deg);
-            }}
-            
-            .energy-card .btn {{
-                transition: all 0.3s ease;
-                position: relative;
-                overflow: hidden;
-            }}
-            
-            .energy-card .btn::before {{
-                content: '';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                width: 0;
-                height: 0;
-                background: rgba(255,255,255,0.2);
-                border-radius: 50%;
-                transform: translate(-50%, -50%);
-                transition: width 0.6s, height 0.6s;
-            }}
-            
-            .energy-card .btn:hover::before {{
-                width: 300px;
-                height: 300px;
-            }}
-            
-            .energy-card .btn:hover {{
-                transform: translateY(-2px);
-                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            }}
-            
-            /* 실시간 업데이트 애니메이션 */
-            .real-time-update {{
-                animation: pulse 2s infinite;
-            }}
-            
-            @keyframes pulse {{
-                0% {{ opacity: 1; }}
-                50% {{ opacity: 0.7; }}
-                100% {{ opacity: 1; }}
-            }}
-            
-            /* 알림 애니메이션 */
-            @keyframes slideInRight {{
-                from {{
-                    transform: translateX(100%);
-                    opacity: 0;
-                }}
-                to {{
-                    transform: translateX(0);
-                    opacity: 1;
-                }}
-            }}
-            
-            @keyframes slideOutRight {{
-                from {{
-                    transform: translateX(0);
-                    opacity: 1;
-                }}
-                to {{
-                    transform: translateX(100%);
-                    opacity: 0;
-                }}
-            }}
-            
-            /* 로딩 애니메이션 */
-            .loading-spinner {{
-                animation: spin 1s linear infinite;
-            }}
-            
-            @keyframes spin {{
-                from {{ transform: rotate(0deg); }}
-                to {{ transform: rotate(360deg); }}
-            }}
-            
-            /* 차트 호버 효과 */
-            .chart-container {{
-                position: relative;
-                transition: all 0.3s ease;
-            }}
-            
-            .chart-container:hover {{
-                transform: scale(1.02);
-                box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            }}
-            
-            /* 실시간 데이터 강조 */
-            .real-time-value {{
-                font-weight: bold;
-                transition: all 0.3s ease;
-            }}
-            
-            .real-time-value.updated {{
-                animation: highlight 0.5s ease;
-            }}
-            
-            @keyframes highlight {{
-                0% {{ background-color: #4f46e5; color: white; }}
-                100% {{ background-color: transparent; color: inherit; }}
-            }}
-            
-            /* 카드 그룹 애니메이션 */
-            .card-group {{
-                animation: fadeInUp 0.6s ease-out;
-            }}
-            
-            @keyframes fadeInUp {{
-                from {{
-                    opacity: 0;
-                    transform: translateY(30px);
-                }}
-                to {{
-                    opacity: 1;
-                    transform: translateY(0);
-                }}
-            }}
-            
-            /* 반응형 개선 */
-            @media (max-width: 768px) {{
-                .energy-card:hover {{
-                    transform: translateY(-3px) scale(1.01);
-                }}
-                
-                .energy-card .btn:hover {{
-                    transform: translateY(-1px);
-                }}
+                transform: translateY(-5px);
+                box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
             }}
             .status-indicator {{
                 width: 12px;
@@ -527,7 +1927,7 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                             <div class="flex-grow-1">
                                 <h1 class="card-title mb-2">LLM SLM Development</h1>
                                 <h4 class="card-subtitle mb-3">{t('main.llmSlmSubtitle', lang)}</h4>
-                                <p class="card-text">{t('main.llmSlmSubtitle', lang)}</p>
+                                <p class="card-text">Advanced AI language model specialized for energy management and analysis</p>
                             </div>
                             <div>
                                 <a href="/llm-slm?lang={lang}" class="btn btn-light btn-lg">
@@ -693,13 +2093,14 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                     <div class="card">
                         <div class="card-header">
                             <h5 class="mb-0">
-                                <i class="fas fa-chart-line"></i> {t('main.realtimeEnergyAnalysis', lang)}
+                                <i class="fas fa-chart-line"></i> <span data-translate="realtime_analysis">Real-time Energy Analysis</span>
+                                <small class="text-muted ms-2">24시간 실시간 에너지 분석</small>
                             </h5>
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <span class="badge bg-info me-2">○</span> {t('main.actualEnergyConsumption', lang)}
-                                <span class="badge bg-warning ms-3 me-2">○</span> {t('main.predictedEnergyConsumption', lang)}
+                                <span class="badge bg-info me-2">○</span> <span data-translate="actual_consumption">실제 에너지 소비 (kWh)</span>
+                                <span class="badge bg-warning ms-3 me-2">○</span> <span data-translate="predicted_consumption">예측 에너지 소비 (kWh)</span>
                             </div>
                             <canvas id="energyChart" width="400" height="100"></canvas>
                         </div>
@@ -713,7 +2114,8 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                     <div class="card energy-card">
                         <div class="card-header bg-primary text-white">
                             <h4 class="mb-0">
-                                <i class="fas fa-robot"></i> {t('main.horizonAiAgentSystem', lang)}
+                                <i class="fas fa-robot"></i> HORIZON AI Agent System
+                                <small class="ms-2">Multi-Site Energy Management AI Agents</small>
                             </h4>
                         </div>
                         <div class="card-body">
@@ -722,25 +2124,25 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                                 <div class="col-md-3">
                                     <div class="kpi-card bg-primary text-white text-center p-3 rounded">
                                         <div class="h2 mb-1">6</div>
-                                        <div class="small">{t('main.totalAgents', lang)}</div>
+                                        <div class="small">총 에이전트</div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="kpi-card bg-success text-white text-center p-3 rounded">
                                         <div class="h2 mb-1">5</div>
-                                        <div class="small">{t('main.activeAgents', lang)}</div>
+                                        <div class="small">활성 에이전트</div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="kpi-card bg-info text-white text-center p-3 rounded">
                                         <div class="h2 mb-1">5,247</div>
-                                        <div class="small">{t('main.totalPredictions', lang)}</div>
+                                        <div class="small">총 예측 수</div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="kpi-card bg-warning text-white text-center p-3 rounded">
                                         <div class="h2 mb-1">91%</div>
-                                        <div class="small">{t('main.averageAccuracy', lang)}</div>
+                                        <div class="small">평균 정확도</div>
                                     </div>
                                 </div>
                             </div>
@@ -748,15 +2150,15 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                             <!-- 사이트 선택 -->
                             <div class="row mb-4">
                                 <div class="col-12">
-                                    <h5><i class="fas fa-map-marker-alt text-primary"></i> {t('main.siteSelection', lang)}</h5>
+                                    <h5><i class="fas fa-map-marker-alt text-primary"></i> 사이트 선택 / Select Site</h5>
                                     <div class="row">
                                         <div class="col-md-3">
                                             <div class="site-option active p-3 border rounded mb-2" onclick="selectSite('oulu')">
                                                 <div class="d-flex align-items-center">
                                                     <span class="fs-1 me-3">🇫🇮</span>
                                                     <div>
-                                                        <h6 class="mb-1">{t('main.ouluUniversity', lang)}</h6>
-                                                        <p class="mb-0 text-muted small">{t('main.finlandExtremeClimate', lang)}</p>
+                                                        <h6 class="mb-1">Oulu University</h6>
+                                                        <p class="mb-0 text-muted small">Finland - 극한 기후</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -766,8 +2168,8 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                                                 <div class="d-flex align-items-center">
                                                     <span class="fs-1 me-3">🇸🇪</span>
                                                     <div>
-                                                        <h6 class="mb-1">{t('main.kthLivingLab', lang)}</h6>
-                                                        <p class="mb-0 text-muted small">{t('main.swedenResearch', lang)}</p>
+                                                        <h6 class="mb-1">KTH Living Lab</h6>
+                                                        <p class="mb-0 text-muted small">Sweden - 실증 연구</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -777,8 +2179,8 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                                                 <div class="d-flex align-items-center">
                                                     <span class="fs-1 me-3">🇷🇴</span>
                                                     <div>
-                                                        <h6 class="mb-1">{t('main.beiaResearch', lang)}</h6>
-                                                        <p class="mb-0 text-muted small">{t('main.romaniaIot', lang)}</p>
+                                                        <h6 class="mb-1">BEIA Research</h6>
+                                                        <p class="mb-0 text-muted small">Romania - IoT 시스템</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -788,8 +2190,8 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                                                 <div class="d-flex align-items-center">
                                                     <span class="fs-1 me-3">🇬🇷</span>
                                                     <div>
-                                                        <h6 class="mb-1">{t('main.triaenaOte', lang)}</h6>
-                                                        <p class="mb-0 text-muted small">{t('main.greeceCommercial', lang)}</p>
+                                                        <h6 class="mb-1">Triaena/OTE</h6>
+                                                        <p class="mb-0 text-muted small">Greece - 상업 빌딩</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1057,7 +2459,7 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                 const ctx = document.getElementById('energyChart').getContext('2d');
                 const data = generateEnergyData();
                 
-                energyChart = new Chart(ctx, {{
+                new Chart(ctx, {{
                     type: 'line',
                     data: {{
                         labels: data.hours,
@@ -1066,192 +2468,49 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                             data: data.actualData,
                             borderColor: 'rgb(75, 192, 192)',
                             backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                            tension: 0.1,
-                            pointRadius: 4,
-                            pointHoverRadius: 8,
-                            pointBackgroundColor: 'rgb(75, 192, 192)',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2
+                            tension: 0.1
                         }}, {{
                             label: '예측 에너지 소비 (kWh)',
                             data: data.predictedData,
                             borderColor: 'rgb(255, 205, 86)',
                             backgroundColor: 'rgba(255, 205, 86, 0.2)',
                             borderDash: [5, 5],
-                            tension: 0.1,
-                            pointRadius: 4,
-                            pointHoverRadius: 8,
-                            pointBackgroundColor: 'rgb(255, 205, 86)',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2
+                            tension: 0.1
                         }}]
                     }},
                     options: {{
                         responsive: true,
-                        interaction: {{
-                            intersect: false,
-                            mode: 'index'
-                        }},
                         scales: {{
                             y: {{
                                 beginAtZero: true,
                                 title: {{
                                     display: true,
-                                    text: '에너지 소비량 (kWh)',
-                                    font: {{
-                                        size: 12,
-                                        weight: 'bold'
-                                    }}
-                                }},
-                                grid: {{
-                                    color: 'rgba(0,0,0,0.1)'
+                                    text: '에너지 소비량 (kWh)'
                                 }}
                             }},
                             x: {{
                                 title: {{
                                     display: true,
-                                    text: '시간 (24시간)',
-                                    font: {{
-                                        size: 12,
-                                        weight: 'bold'
-                                    }}
-                                }},
-                                grid: {{
-                                    color: 'rgba(0,0,0,0.1)'
+                                    text: '시간 (24시간)'
                                 }}
                             }}
                         }},
                         plugins: {{
                             legend: {{
-                                display: true,
-                                position: 'top',
-                                labels: {{
-                                    usePointStyle: true,
-                                    padding: 20,
-                                    font: {{
-                                        size: 12
-                                    }}
-                                }}
-                            }},
-                            tooltip: {{
-                                backgroundColor: 'rgba(0,0,0,0.8)',
-                                titleColor: '#fff',
-                                bodyColor: '#fff',
-                                borderColor: '#4f46e5',
-                                borderWidth: 1,
-                                cornerRadius: 8,
-                                displayColors: true,
-                                callbacks: {{
-                                    title: function(context) {{
-                                        return '시간: ' + context[0].label + '시';
-                                    }},
-                                    label: function(context) {{
-                                        return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' kWh';
-                                    }}
-                                }}
+                                display: false
                             }}
-                        }},
-                        onClick: function(event, elements) {{
-                            if (elements.length > 0) {{
-                                const element = elements[0];
-                                const datasetIndex = element.datasetIndex;
-                                const dataIndex = element.index;
-                                const value = element.parsed.y;
-                                const time = data.hours[dataIndex];
-                                
-                                showChartDetailModal(datasetIndex, time, value);
-                            }}
-                        }},
-                        onHover: function(event, elements) {{
-                            event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
                         }}
                     }}
                 }});
             }}
-            
-            // 차트 상세 모달
-            function showChartDetailModal(datasetIndex, time, value) {{
-                const datasetNames = ['실제 에너지 소비', '예측 에너지 소비'];
-                const modal = document.createElement('div');
-                modal.className = 'modal fade';
-                modal.innerHTML = `
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">${{datasetNames[datasetIndex]}} 상세 정보</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-6">
-                                        <h6>시간 정보</h6>
-                                        <p>시간: ${{time}}시</p>
-                                        <p>소비량: ${{value.toFixed(1)}} kWh</p>
-                                    </div>
-                                    <div class="col-6">
-                                        <h6>분석</h6>
-                                        <p>상태: ${{value > 100 ? '높음' : value > 50 ? '보통' : '낮음'}}</p>
-                                        <p>추천: ${{value > 100 ? '에너지 절약 필요' : '정상 범위'}}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.appendChild(modal);
-                const bsModal = new bootstrap.Modal(modal);
-                bsModal.show();
-                
-                modal.addEventListener('hidden.bs.modal', function() {{
-                    modal.remove();
-                }});
-            }}
 
-            // 언어 전환 함수 (개선된 버전)
+            // 언어 전환 함수
             function switchLanguage(lang) {{
-                // 로컬 스토리지에 언어 설정 저장
-                localStorage.setItem('preferred_language', lang);
-                
                 // 현재 URL에서 언어 파라미터 업데이트
                 const url = new URL(window.location);
                 url.searchParams.set('lang', lang);
-                
-                // 부드러운 전환을 위한 로딩 표시
-                showLanguageSwitchingIndicator();
-                
-                // 페이지 리로드
                 window.location.href = url.toString();
             }}
-            
-            // 언어 전환 중 로딩 표시
-            function showLanguageSwitchingIndicator() {{
-                const indicator = document.createElement('div');
-                indicator.id = 'language-switching-indicator';
-                indicator.innerHTML = `
-                    <div class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" 
-                         style="background: rgba(0,0,0,0.5); z-index: 9999;">
-                        <div class="text-center text-white">
-                            <div class="spinner-border mb-3" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <div>언어를 전환하는 중...</div>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(indicator);
-            }}
-            
-            // 페이지 로드 시 저장된 언어 설정 확인
-            document.addEventListener('DOMContentLoaded', function() {{
-                const savedLang = localStorage.getItem('preferred_language');
-                const currentLang = new URLSearchParams(window.location.search).get('lang') || 'ko';
-                
-                // 저장된 언어가 있고 현재 언어와 다르면 전환
-                if (savedLang && savedLang !== currentLang) {{
-                    switchLanguage(savedLang);
-                }}
-            }});
 
             // AI 에이전트 시스템 관련 함수들
             function scrollToSection(sectionId) {{
@@ -1259,19 +2518,14 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
             }}
 
             function selectSite(siteId) {{
-                // 모든 카드 비활성화 처리
+                // 모든 사이트 옵션에서 active 클래스 제거
                 document.querySelectorAll('.site-option').forEach(option => {{
                     option.classList.remove('active');
-                    option.classList.add('inactive');
                 }});
-
-                // 선택 카드 활성화 처리
-                const selected = event.target.closest('.site-option');
-                if (selected) {{
-                    selected.classList.remove('inactive');
-                    selected.classList.add('active');
-                }}
-
+                
+                // 선택된 사이트에 active 클래스 추가
+                event.target.closest('.site-option').classList.add('active');
+                
                 // 사이트별 에이전트 설정 로드 (실제 구현에서는 API 호출)
                 loadSiteAgents(siteId);
             }}
@@ -1351,485 +2605,60 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                 }}
             }}
 
-            
-            // 전역 변수
-            let energyChart = null;
-            let realTimeData = {{
-                solar: 35,
-                ess: 18,
-                grid: 47,
-                demand: 1250,
-                supply: 1432,
-                efficiency: 87.3
-            }};
-            
-            // 실시간 데이터 업데이트
-            function updateRealTimeData() {{
-                // 실제 데이터 시뮬레이션 (실제로는 API에서 가져옴)
-                realTimeData.solar = Math.max(0, realTimeData.solar + (Math.random() - 0.5) * 5);
-                realTimeData.ess = Math.max(0, realTimeData.ess + (Math.random() - 0.5) * 3);
-                realTimeData.grid = 100 - realTimeData.solar - realTimeData.ess;
-                realTimeData.demand = Math.floor(1200 + Math.random() * 200);
-                realTimeData.supply = Math.floor(1300 + Math.random() * 300);
-                realTimeData.efficiency = Math.floor((realTimeData.supply / realTimeData.demand) * 100);
-                
-                // 차트 업데이트
-                if (energyChart) {{
-                    energyChart.data.datasets[0].data = [realTimeData.solar, realTimeData.ess, realTimeData.grid];
-                    energyChart.update('active');
-                }}
-                
-                // 실시간 수치 업데이트
-                updateRealTimeStats();
-                
-                // 알림 체크
-                checkAlerts();
+            // 사용자 관련 함수들
+            function showUserProfile() {{
+                const userInfo = JSON.parse(localStorage.getItem('user_info') || '{{}}');
+                alert(`사용자 프로필\\n\\n이름: ${{userInfo.name || 'N/A'}}\\n이메일: ${{userInfo.email || 'N/A'}}\\n역할: ${{userInfo.role || 'N/A'}}`);
             }}
             
-            // 실시간 통계 업데이트
-            function updateRealTimeStats() {{
-                const elements = {{
-                    'current-demand': realTimeData.demand + ' kW',
-                    'current-supply': realTimeData.supply + ' kW',
-                    'current-efficiency': realTimeData.efficiency + '%',
-                    'solar-power': (realTimeData.solar * 0.14).toFixed(1) + ' kW',
-                    'solar-percentage': realTimeData.solar.toFixed(1),
-                    'ess-power': (realTimeData.ess * 0.14).toFixed(1) + ' kW',
-                    'ess-percentage': realTimeData.ess.toFixed(1),
-                    'grid-power': (realTimeData.grid * 0.14).toFixed(1) + ' kW',
-                    'grid-percentage': realTimeData.grid.toFixed(1)
-                }};
+            function showSettings() {{
+                alert('설정 페이지가 곧 오픈됩니다!');
+            }}
+            
+            async function logout() {{
+                const sessionToken = localStorage.getItem('session_token');
                 
-                Object.entries(elements).forEach(([id, value]) => {{
-                    const element = document.getElementById(id);
-                    if (element) {{
-                        // 애니메이션 효과
-                        element.classList.add('updated');
-                        element.style.transform = 'scale(1.1)';
-                        element.style.color = '#4f46e5';
-                        element.textContent = value;
+                if (sessionToken) {{
+                    try {{
+                        const formData = new FormData();
+                        formData.append('session_token', sessionToken);
                         
-                        setTimeout(() => {{
-                            element.style.transform = 'scale(1)';
-                            element.style.color = '';
-                            element.classList.remove('updated');
-                        }}, 300);
+                        await fetch('/api/logout', {{
+                            method: 'POST',
+                            body: formData
+                        }});
+                    }} catch (error) {{
+                        console.error('로그아웃 API 오류:', error);
                     }}
-                }});
+                }}
+                
+                // 로컬 스토리지 정리
+                localStorage.removeItem('session_token');
+                localStorage.removeItem('user_info');
+                
+                // 로그인 페이지로 리다이렉트
+                window.location.href = '/login?lang={lang}';
             }}
             
-            // 알림 시스템
-            function checkAlerts() {{
-                const alerts = [];
-                
-                if (realTimeData.efficiency < 80) {{
-                    alerts.push({{
-                        type: 'warning',
-                        message: '에너지 효율이 80% 미만입니다. 최적화가 필요합니다.',
-                        icon: 'fas fa-exclamation-triangle'
-                    }});
-                }}
-                
-                if (realTimeData.solar > 60) {{
-                    alerts.push({{
-                        type: 'success',
-                        message: '태양광 발전량이 높습니다. ESS 충전을 고려하세요.',
-                        icon: 'fas fa-sun'
-                    }});
-                }}
-                
-                if (realTimeData.demand > realTimeData.supply) {{
-                    alerts.push({{
-                        type: 'danger',
-                        message: '수요가 공급을 초과했습니다. 그리드 전력 사용량을 확인하세요.',
-                        icon: 'fas fa-bolt'
-                    }});
-                }}
-                
-                // 알림 표시
-                if (alerts.length > 0) {{
-                    showNotification(alerts[0]);
+            // 사용자 정보 로드
+            function loadUserInfo() {{
+                const userInfo = JSON.parse(localStorage.getItem('user_info') || '{{}}');
+                const userNameElement = document.getElementById('userName');
+                if (userNameElement && userInfo.name) {{
+                    userNameElement.textContent = userInfo.name;
                 }}
             }}
             
-            // 알림 표시
-            function showNotification(alert) {{
-                // 기존 알림 제거
-                const existingAlert = document.querySelector('.notification-toast');
-                if (existingAlert) {{
-                    existingAlert.remove();
-                }}
-                
-                const notification = document.createElement('div');
-                notification.className = `notification-toast alert alert-${{alert.type}} alert-dismissible fade show`;
-                notification.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    z-index: 9999;
-                    min-width: 300px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                    animation: slideInRight 0.3s ease-out;
-                `;
-                
-                notification.innerHTML = `
-                    <i class="${{alert.icon}} me-2"></i>
-                    ${{alert.message}}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                
-                document.body.appendChild(notification);
-                
-                // 5초 후 자동 제거
-                setTimeout(() => {{
-                    if (notification.parentNode) {{
-                        notification.remove();
-                    }}
-                }}, 5000);
-            }}
-            
-            // 카드 호버 효과
-            function initCardInteractions() {{
-                const cards = document.querySelectorAll('.energy-card');
-                
-                cards.forEach(card => {{
-                    card.addEventListener('mouseenter', function() {{
-                        this.style.transform = 'translateY(-5px)';
-                        this.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
-                        this.style.transition = 'all 0.3s ease';
-                    }});
-                    
-                    card.addEventListener('mouseleave', function() {{
-                        this.style.transform = 'translateY(0)';
-                        this.style.boxShadow = '';
-                    }});
-                }});
-            }}
-            
-            // 로딩 애니메이션
-            function showLoadingAnimation() {{
-                const loadingOverlay = document.createElement('div');
-                loadingOverlay.id = 'loadingOverlay';
-                loadingOverlay.style.cssText = `
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(255,255,255,0.9);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 9999;
-                `;
-                
-                loadingOverlay.innerHTML = `
-                    <div class="text-center">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-3">데이터를 불러오는 중...</p>
-                    </div>
-                `;
-                
-                document.body.appendChild(loadingOverlay);
-            }}
-            
-            function hideLoadingAnimation() {{
-                const loadingOverlay = document.getElementById('loadingOverlay');
-                if (loadingOverlay) {{
-                    loadingOverlay.remove();
-                }}
-            }}
-            
-            // 키보드 단축키
-            function initKeyboardShortcuts() {{
-                document.addEventListener('keydown', function(e) {{
-                    if (e.ctrlKey || e.metaKey) {{
-                        switch(e.key) {{
-                            case 'r':
-                                e.preventDefault();
-                                updateRealTimeData();
-                                break;
-                            case 'h':
-                                e.preventDefault();
-                                showHelpModal();
-                                break;
-                        }}
-                    }}
-                }});
-            }}
-            
-            // 도움말 모달
-            function showHelpModal() {{
-                const modal = document.createElement('div');
-                modal.className = 'modal fade';
-                modal.innerHTML = `
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">키보드 단축키</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <h6>기본 단축키</h6>
-                                        <ul>
-                                            <li><kbd>Ctrl+R</kbd> - 데이터 새로고침</li>
-                                            <li><kbd>Ctrl+H</kbd> - 도움말 표시</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <h6>인터랙션</h6>
-                                        <ul>
-                                            <li>차트 클릭 - 상세 정보</li>
-                                            <li>카드 호버 - 확대 효과</li>
-                                            <li>실시간 업데이트 - 5초마다</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.appendChild(modal);
-                const bsModal = new bootstrap.Modal(modal);
-                bsModal.show();
-                
-                modal.addEventListener('hidden.bs.modal', function() {{
-                    modal.remove();
-                }});
-            }}
-            
-            // 페이지 로드 시 초기화
+            // 페이지 로드 시 차트 초기화
             document.addEventListener('DOMContentLoaded', function() {{
                 initEnergyChart();
-                initCardInteractions();
-                initKeyboardShortcuts();
-                
-                // 실시간 업데이트 시작 (5초마다)
-                setInterval(updateRealTimeData, 5000);
-                
-                // 초기 로딩 애니메이션
-                showLoadingAnimation();
-                setTimeout(hideLoadingAnimation, 2000);
+                loadUserInfo();
             }});
         </script>
     </body>
     </html>
     """
 
-@web_app.get("/trading-ai", response_class=HTMLResponse)
-async def trading_ai_page(request: Request, lang: str = Query("ko", description="Language code")):
-    if lang not in get_available_languages():
-        lang = "ko"
-    return f"""
-    <!DOCTYPE html>
-    <html lang="{lang}">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>전력 거래 AI 시스템</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-        <style>
-            body {{ background:#f9fafb; }}
-            .shadow-soft {{ box-shadow: 0 4px 16px rgba(0,0,0,0.08); }}
-            .card-soft {{ border:1px solid #e5e7eb; border-radius:12px; background:#fff; }}
-            .gradient-card {{ background: linear-gradient(90deg,#4f46e5,#7c3aed); color:#fff; border-radius:16px; }}
-            .badge-dot {{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }}
-        </style>
-    </head>
-    <body>
-        {generate_navigation(lang)}
-        <div class="container my-4">
-            <div class="d-flex align-items-center mb-3">
-                <div class="bg-primary rounded p-2 me-2 text-white"><i class="fas fa-bolt"></i></div>
-                <div>
-                    <h3 class="mb-0">전력 거래 AI 시스템</h3>
-                    <small class="text-muted">스마트한 에너지 거래</small>
-                </div>
-                <div class="ms-auto">
-                    <button id="notifBtn" class="btn btn-light border"><i class="fas fa-bell"></i></button>
-                </div>
-            </div>
-
-            <div id="notifPanel" class="card-soft shadow-soft p-0 mb-3" style="display:none; max-height:380px; overflow:auto;">
-                <div class="border-bottom p-3 fw-bold">알림</div>
-                <div id="notifList"></div>
-            </div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-md-3">
-                    <div class="card-soft shadow-soft p-3">
-                        <div class="d-flex justify-content-between mb-1"><small class="text-muted">오늘의 수익</small><i class="fas fa-dollar-sign text-success"></i></div>
-                        <div class="h4 mb-1" id="statProfit">+12,500원</div>
-                        <small class="text-success"><i class="fas fa-arrow-up"></i> 전월 대비 15% 증가</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card-soft shadow-soft p-3">
-                        <div class="d-flex justify-content-between mb-1"><small class="text-muted">현재 전력량</small><i class="fas fa-bolt text-warning"></i></div>
-                        <div class="h4 mb-1" id="statPower">850 kWh</div>
-                        <div class="progress" style="height:6px;"><div class="progress-bar bg-primary" id="powerTarget" style="width:92%"></div></div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card-soft shadow-soft p-3">
-                        <div class="d-flex justify-content-between mb-1"><small class="text-muted">오늘의 추천</small><i class="fas fa-sun text-orange"></i></div>
-                        <div class="small text-muted">판매 타이밍</div>
-                        <div class="h5 mb-0" id="statReco">14:00-16:00</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card-soft shadow-soft p-3">
-                        <div class="d-flex justify-content-between mb-1"><small class="text-muted">AI 상태</small><i class="fas fa-robot text-primary"></i></div>
-                        <div class="h4 mb-1">정상</div>
-                        <small class="text-muted"><i class="fas fa-check-circle text-success"></i> 5/5 에이전트 활성화</small>
-                    </div>
-                </div>
-            </div>
-
-            <div class="gradient-card p-4 mb-3 shadow-soft">
-                <div class="row">
-                    <div class="col-md-8">
-                        <h5 class="fw-bold mb-2"><i class="fas fa-lightbulb"></i> AI 추천 거래</h5>
-                        <p class="mb-3">지금이 판매하기 좋은 타이밍입니다!</p>
-                        <div class="row g-3">
-                            <div class="col-4"><small class="opacity-75">추천 시간</small><div class="fw-bold">오후 2:00-4:00</div></div>
-                            <div class="col-4"><small class="opacity-75">판매량</small><div class="fw-bold">500 kWh</div></div>
-                            <div class="col-4"><small class="opacity-75">예상 수익</small><div class="fw-bold">45,000원</div></div>
-                        </div>
-                        <div class="mt-3">
-                            <button class="btn btn-light text-primary me-2">거래 시뮬레이션</button>
-                            <button class="btn btn-dark">바로 거래하기</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-3">
-                <div class="col-lg-6">
-                    <div class="card-soft shadow-soft p-3 h-100">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="mb-0"><i class="fas fa-users-cog text-primary"></i> 당신의 AI 거래 팀</h5>
-                            <button class="btn btn-sm btn-outline-primary">상세 보기</button>
-                        </div>
-                        <div id="agentList" class="vstack gap-2"></div>
-                        <div class="mt-3 p-3 bg-light rounded">
-                            <div class="small mb-2">💬 궁금한 점이 있으신가요?</div>
-                            <button class="btn btn-primary w-100">AI 어시스턴트와 대화하기</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="card-soft shadow-soft p-3 h-100">
-                        <h5 class="mb-3">💬 AI 거래 어시스턴트</h5>
-                        <div id="chatArea" class="mb-3" style="max-height:330px; overflow:auto;"></div>
-                        <div class="d-flex gap-2 border-top pt-3">
-                            <input id="chatInput" type="text" class="form-control" placeholder="메시지를 입력하세요...">
-                            <button id="chatSend" class="btn btn-primary">전송</button>
-                        </div>
-                        <div class="mt-2 small text-muted">💡 자주 묻는 질문: <span class="badge bg-light text-dark me-1">이번 주 예상 수익은?</span><span class="badge bg-light text-dark me-1">자동 거래 설정</span><span class="badge bg-light text-dark">날씨 영향</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-soft shadow-soft p-3 mt-3">
-                <h5 class="mb-3"><i class="fas fa-chart-line text-primary"></i> 시장 동향</h5>
-                <div class="row g-2 align-items-end" id="marketBars"></div>
-            </div>
-        </div>
-
-        <script>
-            const notifData = [
-                { id:1, type:'urgent', time:'방금', title:'긴급 거래 기회!', desc:'지금 판매하면 평소보다 20% 더 수익' },
-                { id:2, type:'info', time:'10분 전', title:'일일 리포트 준비 완료', desc:'어제 거래 실적이 정리되었습니다' },
-                { id:3, type:'success', time:'1시간 전', title:'자동 거래 성공', desc:'AI가 350kWh를 판매했습니다 (31,500원)' }
-            ];
-            const agents = [
-                { name:'데이터 수집가', status:'정상', task:'날씨 데이터 분석 중', accuracy:'99%' },
-                { name:'예측 전문가', status:'정상', task:'오후 2시 피크 예상', accuracy:'94%' },
-                { name:'모니터링 요원', status:'정상', task:'이상 징후 없음', accuracy:'100%' },
-                { name:'거래 전략가', status:'정상', task:'전략 준비 완료', accuracy:'92%' },
-            ];
-            const messages = [
-                { sender:'user', text:'오늘 전력을 팔기 좋은 시간이 언제야?' },
-                { sender:'ai', text:'네! 오늘 분석 결과를 알려드릴게요.\n\n📊 최적 판매 시간: 오후 2시 ~ 4시\n\n이유는 다음과 같아요:\n1. 🌡️ 오후에 기온이 28도까지 올라가요\n2. ⚡ 에어컨 사용으로 전력 수요가 급증해요\n3. 💰 가격이 평소보다 15% 높아질 것으로 예상돼요' }
-            ];
-
-            function renderNotifications() {{
-                const list = document.getElementById('notifList');
-                list.innerHTML = notifData.map(n => `
-                    <div class="p-3 border-bottom">
-                        <div class="d-flex">
-                            <span class="badge-dot ${{n.type==='urgent'?'bg-danger':(n.type==='success'?'bg-success':'bg-primary')}}"></span>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold">${{n.title}}</div>
-                                <div class="small text-muted">${{n.desc}}</div>
-                                <div class="small text-secondary mt-1">${{n.time}}</div>
-                            </div>
-                        </div>
-                    </div>`).join('');
-            }}
-
-            function renderAgents() {{
-                const wrap = document.getElementById('agentList');
-                wrap.innerHTML = agents.map((a,i)=>`
-                    <div class="p-3 border rounded d-flex justify-content-between align-items-start">
-                        <div>
-                            <div class="fw-semibold">[${{i+1}}단계] ${{a.name}}</div>
-                            <div class="small text-muted">${{a.task}}</div>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge bg-success">정상</span>
-                            <div class="small text-muted mt-1">정확도 ${{a.accuracy}}</div>
-                        </div>
-                    </div>`).join('');
-            }}
-
-            function renderChat() {{
-                const area = document.getElementById('chatArea');
-                area.innerHTML = messages.map(m=>`
-                    <div class="d-flex ${{m.sender==='user'?'justify-content-end':'justify-content-start'}} mb-2">
-                        <div class="p-2 rounded ${{m.sender==='user'?'bg-primary text-white':'bg-light'}}" style="max-width:80%">${{m.text.replaceAll('\n','<br>')}}</div>
-                    </div>`).join('');
-            }}
-
-            function renderMarket() {{
-                const bars = document.getElementById('marketBars');
-                const series = [65,78,85,92,88,95,82,90];
-                bars.innerHTML = series.map((h,idx)=>`
-                    <div class="col">
-                        <div class="bg-primary" style="height:${{h}}%; border-radius:6px;"></div>
-                        <div class="text-center small text-muted mt-1">${{9+idx}}시</div>
-                    </div>`).join('');
-            }}
-
-            document.getElementById('notifBtn').addEventListener('click', ()=>{
-                const p = document.getElementById('notifPanel');
-                if (p.style.display==='none') { p.style.display='block'; renderNotifications(); }
-                else { p.style.display='none'; }
-            });
-            document.getElementById('chatSend').addEventListener('click', ()=>{
-                const input = document.getElementById('chatInput');
-                const text = input.value.trim();
-                if (!text) return;
-                messages.push({ sender:'user', text });
-                renderChat();
-                input.value='';
-            });
-
-            // init
-            renderAgents();
-            renderChat();
-            renderMarket();
-        </script>
-    </body>
-    </html>
-    """
 @web_app.get("/health", response_class=HTMLResponse)
 async def health_page(request: Request, lang: str = Query("ko", description="Language code")):
     """연결된 Digital Experience Intelligence Platform"""
@@ -6973,8 +7802,8 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                 <div class="col-4">
                                     <div class="metric-card">
                                         <h6 class="text-primary">현재 매칭율</h6>
-                                        <h4 id="current-efficiency" class="real-time-value">87.3%</h4>
-                                        <small class="text-muted">수요: <span id="current-demand" class="real-time-value">1,250</span> kW / 공급: <span id="current-supply" class="real-time-value">1,432</span> kW</small>
+                                        <h4 id="currentMatchingRate">87.3%</h4>
+                                        <small class="text-muted">수요: <span id="currentDemand">1,250</span> kW / 공급: <span id="currentSupply">1,432</span> kW</small>
                                 </div>
                             </div>
                                 <div class="col-4">
@@ -7219,24 +8048,24 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
                                             <div class="supply-icon">☀️</div>
                                             <div class="supply-info">
                                                 <strong>태양광</strong><br>
-                                                <span id="solar-power" class="real-time-value">3.5 kW</span><br>
-                                                <small class="text-muted">(<span id="solar-percentage" class="real-time-value">24.4</span>%)</small>
+                                                <span id="solarPower">3.5 kW</span><br>
+                                                <small class="text-muted">(24.4%)</small>
                                 </div>
                             </div>
                                         <div class="supply-item">
                                             <div class="supply-icon">🔋</div>
                                             <div class="supply-info">
                                                 <strong>ESS</strong><br>
-                                                <span id="ess-power" class="real-time-value">1.8 kW</span><br>
-                                                <small class="text-muted">(<span id="ess-percentage" class="real-time-value">12.6</span>%)</small>
+                                                <span id="essPower">1.8 kW</span><br>
+                                                <small class="text-muted">(12.6%)</small>
                                             </div>
                                         </div>
                                         <div class="supply-item">
                                             <div class="supply-icon">🔌</div>
                                             <div class="supply-info">
                                                 <strong>그리드</strong><br>
-                                                <span id="grid-power" class="real-time-value">9.0 kW</span><br>
-                                                <small class="text-muted">(<span id="grid-percentage" class="real-time-value">63</span>%)</small>
+                                                <span id="gridPower">9.0 kW</span><br>
+                                                <small class="text-muted">(63%)</small>
                                             </div>
                                         </div>
                                         <div class="supply-item">
@@ -10787,26 +11616,16 @@ async def agent_system_page(request: Request, lang: str = Query("ko", descriptio
                 margin: 10px 0;
                 cursor: pointer;
                 transition: all 0.3s ease;
-                background: #ffffff;
             }}
             
             .site-option:hover {{
                 border-color: var(--primary-color);
                 background: #f8fafc;
-                box-shadow: 0 6px 18px rgba(79, 70, 229, 0.12);
-                transform: translateY(-2px);
             }}
             
             .site-option.active {{
                 border-color: var(--primary-color);
                 background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-                box-shadow: 0 8px 22px rgba(79, 70, 229, 0.18);
-                transform: translateY(-3px);
-            }}
-
-            .site-option.inactive {{
-                opacity: 0.65;
-                filter: grayscale(10%);
             }}
             
             .chart-container {{

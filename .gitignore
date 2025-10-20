@@ -43,3 +43,4 @@ web_interface_simple.py
 .cache/
 react-weather-app/node_modules/
 energy-analysis-mcp/
+*.tar.gz
