@@ -182,6 +182,11 @@ def generate_navigation(current_lang='ko'):
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="/trading-ai?lang={current_lang}">
+                                <i class="fas fa-robot"></i> 전력 거래 AI
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="/model-testing?lang={current_lang}">
                                 <i class="fas fa-brain"></i> {t('navigation.modelTesting', current_lang)}
                             </a>
@@ -431,6 +436,51 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
             }}
             .kpi-card:hover {{
                 transform: translateY(-5px);
+            }}
+            .site-option {{
+                padding: 15px;
+                border: 2px solid #e5e7eb;
+                border-radius: 10px;
+                margin: 10px 0;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                position: relative;
+                background: #ffffff;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            }}
+            
+            .site-option:hover {{
+                border-color: var(--primary-color);
+                background: #f8fafc;
+                transform: translateY(-2px);
+            }}
+            
+            .site-option.active {{
+                border-color: var(--primary-color);
+                background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+                box-shadow: 0 6px 18px rgba(79, 70, 229, 0.15);
+                transform: translateY(-3px) scale(1.01);
+            }}
+            
+            .site-option.inactive {{
+                opacity: 0.6;
+                filter: grayscale(10%);
+            }}
+            
+            .site-option .status-dot {{
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: #9ca3af;
+                transition: background 0.3s ease, transform 0.3s ease;
+            }}
+            
+            .site-option.active .status-dot {{
+                background: #10b981;
+                transform: scale(1.2);
             }}
         </style>
     </head>
@@ -683,6 +733,7 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                                                         <p class="mb-0 text-muted small">Finland - 극한 기후</p>
                                                     </div>
                                                 </div>
+                                                <div class="status-dot"></div>
                                             </div>
                                         </div>
                                         <div class="col-md-3">
@@ -694,6 +745,7 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                                                         <p class="mb-0 text-muted small">Sweden - 실증 연구</p>
                                                     </div>
                                                 </div>
+                                                <div class="status-dot"></div>
                                             </div>
                                         </div>
                                         <div class="col-md-3">
@@ -705,6 +757,7 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                                                         <p class="mb-0 text-muted small">Romania - IoT 시스템</p>
                                                     </div>
                                                 </div>
+                                                <div class="status-dot"></div>
                                             </div>
                                         </div>
                                         <div class="col-md-3">
@@ -716,6 +769,7 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
                                                         <p class="mb-0 text-muted small">Greece - 상업 빌딩</p>
                                                     </div>
                                                 </div>
+                                                <div class="status-dot"></div>
                                             </div>
                                         </div>
                                     </div>
@@ -948,7 +1002,6 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
         <button class="refresh-button" onclick="refreshAllData()" title="모든 데이터 새로고침">
             <i class="fas fa-sync-alt"></i>
         </button>
-
         <script>
             // 실시간 에너지 데이터 생성
             function generateEnergyData() {{
@@ -1503,6 +1556,215 @@ async def dashboard(request: Request, lang: str = Query("ko", description="Langu
     </html>
     """
 
+@web_app.get("/trading-ai", response_class=HTMLResponse)
+async def trading_ai_page(request: Request, lang: str = Query("ko", description="Language code")):
+    if lang not in get_available_languages():
+        lang = "ko"
+    return f"""
+    <!DOCTYPE html>
+    <html lang="{lang}">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>전력 거래 AI 시스템</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <style>
+            body {{ background:#f9fafb; }}
+            .shadow-soft {{ box-shadow: 0 4px 16px rgba(0,0,0,0.08); }}
+            .card-soft {{ border:1px solid #e5e7eb; border-radius:12px; background:#fff; }}
+            .gradient-card {{ background: linear-gradient(90deg,#4f46e5,#7c3aed); color:#fff; border-radius:16px; }}
+            .badge-dot {{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }}
+        </style>
+    </head>
+    <body>
+        {generate_navigation(lang)}
+        <div class="container my-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="bg-primary rounded p-2 me-2 text-white"><i class="fas fa-bolt"></i></div>
+                <div>
+                    <h3 class="mb-0">전력 거래 AI 시스템</h3>
+                    <small class="text-muted">스마트한 에너지 거래</small>
+                </div>
+                <div class="ms-auto">
+                    <button id="notifBtn" class="btn btn-light border"><i class="fas fa-bell"></i></button>
+                </div>
+            </div>
+
+            <div id="notifPanel" class="card-soft shadow-soft p-0 mb-3" style="display:none; max-height:380px; overflow:auto;">
+                <div class="border-bottom p-3 fw-bold">알림</div>
+                <div id="notifList"></div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <div class="card-soft shadow-soft p-3">
+                        <div class="d-flex justify-content-between mb-1"><small class="text-muted">오늘의 수익</small><i class="fas fa-dollar-sign text-success"></i></div>
+                        <div class="h4 mb-1" id="statProfit">+12,500원</div>
+                        <small class="text-success"><i class="fas fa-arrow-up"></i> 전월 대비 15% 증가</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card-soft shadow-soft p-3">
+                        <div class="d-flex justify-content-between mb-1"><small class="text-muted">현재 전력량</small><i class="fas fa-bolt text-warning"></i></div>
+                        <div class="h4 mb-1" id="statPower">850 kWh</div>
+                        <div class="progress" style="height:6px;"><div class="progress-bar bg-primary" id="powerTarget" style="width:92%"></div></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card-soft shadow-soft p-3">
+                        <div class="d-flex justify-content-between mb-1"><small class="text-muted">오늘의 추천</small><i class="fas fa-sun text-orange"></i></div>
+                        <div class="small text-muted">판매 타이밍</div>
+                        <div class="h5 mb-0" id="statReco">14:00-16:00</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card-soft shadow-soft p-3">
+                        <div class="d-flex justify-content-between mb-1"><small class="text-muted">AI 상태</small><i class="fas fa-robot text-primary"></i></div>
+                        <div class="h4 mb-1">정상</div>
+                        <small class="text-muted"><i class="fas fa-check-circle text-success"></i> 5/5 에이전트 활성화</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="gradient-card p-4 mb-3 shadow-soft">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5 class="fw-bold mb-2"><i class="fas fa-lightbulb"></i> AI 추천 거래</h5>
+                        <p class="mb-3">지금이 판매하기 좋은 타이밍입니다!</p>
+                        <div class="row g-3">
+                            <div class="col-4"><small class="opacity-75">추천 시간</small><div class="fw-bold">오후 2:00-4:00</div></div>
+                            <div class="col-4"><small class="opacity-75">판매량</small><div class="fw-bold">500 kWh</div></div>
+                            <div class="col-4"><small class="opacity-75">예상 수익</small><div class="fw-bold">45,000원</div></div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-light text-primary me-2">거래 시뮬레이션</button>
+                            <button class="btn btn-dark">바로 거래하기</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="card-soft shadow-soft p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0"><i class="fas fa-users-cog text-primary"></i> 당신의 AI 거래 팀</h5>
+                            <button class="btn btn-sm btn-outline-primary">상세 보기</button>
+                        </div>
+                        <div id="agentList" class="vstack gap-2"></div>
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <div class="small mb-2">💬 궁금한 점이 있으신가요?</div>
+                            <button class="btn btn-primary w-100">AI 어시스턴트와 대화하기</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card-soft shadow-soft p-3 h-100">
+                        <h5 class="mb-3">💬 AI 거래 어시스턴트</h5>
+                        <div id="chatArea" class="mb-3" style="max-height:330px; overflow:auto;"></div>
+                        <div class="d-flex gap-2 border-top pt-3">
+                            <input id="chatInput" type="text" class="form-control" placeholder="메시지를 입력하세요...">
+                            <button id="chatSend" class="btn btn-primary">전송</button>
+                        </div>
+                        <div class="mt-2 small text-muted">💡 자주 묻는 질문: <span class="badge bg-light text-dark me-1">이번 주 예상 수익은?</span><span class="badge bg-light text-dark me-1">자동 거래 설정</span><span class="badge bg-light text-dark">날씨 영향</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-soft shadow-soft p-3 mt-3">
+                <h5 class="mb-3"><i class="fas fa-chart-line text-primary"></i> 시장 동향</h5>
+                <div class="row g-2 align-items-end" id="marketBars"></div>
+            </div>
+        </div>
+
+        <script>
+            const notifData = [
+                { id:1, type:'urgent', time:'방금', title:'긴급 거래 기회!', desc:'지금 판매하면 평소보다 20% 더 수익' },
+                { id:2, type:'info', time:'10분 전', title:'일일 리포트 준비 완료', desc:'어제 거래 실적이 정리되었습니다' },
+                { id:3, type:'success', time:'1시간 전', title:'자동 거래 성공', desc:'AI가 350kWh를 판매했습니다 (31,500원)' }
+            ];
+            const agents = [
+                { name:'데이터 수집가', status:'정상', task:'날씨 데이터 분석 중', accuracy:'99%' },
+                { name:'예측 전문가', status:'정상', task:'오후 2시 피크 예상', accuracy:'94%' },
+                { name:'모니터링 요원', status:'정상', task:'이상 징후 없음', accuracy:'100%' },
+                { name:'거래 전략가', status:'정상', task:'전략 준비 완료', accuracy:'92%' },
+            ];
+            const messages = [
+                { sender:'user', text:'오늘 전력을 팔기 좋은 시간이 언제야?' },
+                { sender:'ai', text:'네! 오늘 분석 결과를 알려드릴게요.\n\n📊 최적 판매 시간: 오후 2시 ~ 4시\n\n이유는 다음과 같아요:\n1. 🌡️ 오후에 기온이 28도까지 올라가요\n2. ⚡ 에어컨 사용으로 전력 수요가 급증해요\n3. 💰 가격이 평소보다 15% 높아질 것으로 예상돼요' }
+            ];
+
+            function renderNotifications() {
+                const list = document.getElementById('notifList');
+                list.innerHTML = notifData.map(n => `
+                    <div class="p-3 border-bottom">
+                        <div class="d-flex">
+                            <span class="badge-dot ${n.type==='urgent'?'bg-danger':(n.type==='success'?'bg-success':'bg-primary')}"></span>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">${n.title}</div>
+                                <div class="small text-muted">${n.desc}</div>
+                                <div class="small text-secondary mt-1">${n.time}</div>
+                            </div>
+                        </div>
+                    </div>`).join('');
+            }
+
+            function renderAgents() {
+                const wrap = document.getElementById('agentList');
+                wrap.innerHTML = agents.map((a,i)=>`
+                    <div class="p-3 border rounded d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-semibold">[${i+1}단계] ${a.name}</div>
+                            <div class="small text-muted">${a.task}</div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success">정상</span>
+                            <div class="small text-muted mt-1">정확도 ${a.accuracy}</div>
+                        </div>
+                    </div>`).join('');
+            }
+
+            function renderChat() {
+                const area = document.getElementById('chatArea');
+                area.innerHTML = messages.map(m=>`
+                    <div class="d-flex ${m.sender==='user'?'justify-content-end':'justify-content-start'} mb-2">
+                        <div class="p-2 rounded ${m.sender==='user'?'bg-primary text-white':'bg-light'}" style="max-width:80%">${m.text.replaceAll('\n','<br>')}</div>
+                    </div>`).join('');
+            }
+
+            function renderMarket() {
+                const bars = document.getElementById('marketBars');
+                const series = [65,78,85,92,88,95,82,90];
+                bars.innerHTML = series.map((h,idx)=>`
+                    <div class="col">
+                        <div class="bg-primary" style="height:${h}%; border-radius:6px;"></div>
+                        <div class="text-center small text-muted mt-1">${9+idx}시</div>
+                    </div>`).join('');
+            }
+
+            document.getElementById('notifBtn').addEventListener('click', ()=>{
+                const p = document.getElementById('notifPanel');
+                if (p.style.display==='none') { p.style.display='block'; renderNotifications(); }
+                else { p.style.display='none'; }
+            });
+            document.getElementById('chatSend').addEventListener('click', ()=>{
+                const input = document.getElementById('chatInput');
+                const text = input.value.trim();
+                if (!text) return;
+                messages.push({ sender:'user', text });
+                renderChat();
+                input.value='';
+            });
+
+            // init
+            renderAgents();
+            renderChat();
+            renderMarket();
+        </script>
+    </body>
+    </html>
+    """
 @web_app.get("/health", response_class=HTMLResponse)
 async def health_page(request: Request, lang: str = Query("ko", description="Language code")):
     """연결된 Digital Experience Intelligence Platform"""
@@ -2259,7 +2521,6 @@ async def health_page(request: Request, lang: str = Query("ko", description="Lan
     </body>
     </html>
     """
-
 @web_app.get("/data-explorer", response_class=HTMLResponse)
 async def data_explorer_page(request: Request, lang: str = Query("ko", description="Language code")):
     """데이터 탐색 및 분석 페이지 - 데이터 투명성 핵심 기능"""
@@ -3422,8 +3683,8 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                                     <div class="metric-item">
                                         <div class="metric-value">22%</div>
                                         <div class="metric-label">절약률</div>
+                                    </div>
                                 </div>
-                            </div>
                                 <div class="col-4">
                                     <div class="metric-item">
                                         <div class="metric-value">
@@ -3927,7 +4188,6 @@ async def statistics_page(request: Request, lang: str = Query("ko", description=
                 </div>
             </div>
         </div>
-
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
             // 글로벌 맵 초기화
@@ -4780,7 +5040,6 @@ async def energy_trading_page(request: Request, lang: str = Query("ko", descript
     </body>
     </html>
     """
-
 @web_app.get("/trading", response_class=HTMLResponse)
 async def trading_page(request: Request, lang: str = Query("ko", description="Language code")):
     """전력/탄소 거래 플랫폼 - P2P Trading & Carbon Credit System with AI Optimization"""
@@ -5350,7 +5609,6 @@ async def trading_page(request: Request, lang: str = Query("ko", description="La
     </body>
     </html>
     """
-
 @web_app.get("/data-collection", response_class=HTMLResponse)
 async def data_collection_page(request: Request, lang: str = Query("ko", description="Language code")):
     """Energy Supply Monitoring with Advanced Weather Analysis 페이지"""
@@ -6075,7 +6333,6 @@ async def data_collection_page(request: Request, lang: str = Query("ko", descrip
     </body>
     </html>
     """
-
 @web_app.get("/data-analysis", response_class=HTMLResponse)
 async def data_analysis_page(request: Request, lang: str = Query("ko", description="Language code")):
     """개선된 에너지 수요 분석 및 예측 대시보드"""
@@ -7287,7 +7544,6 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
             </div>
 
         </div>
-
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
             // 전역 변수
@@ -8055,7 +8311,6 @@ async def data_analysis_page(request: Request, lang: str = Query("ko", descripti
             }}
 
         </script>
-
         <!-- 모달 창들 -->
         <div class="modal fade" id="dataSourceModal" tabindex="-1">
             <div class="modal-dialog modal-lg">
@@ -8703,7 +8958,6 @@ async def model_testing_page(request: Request, lang: str = Query("ko", descripti
                 </div>
             </div>
         </div>
-
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
             let currentStep = 0;
@@ -9076,7 +9330,6 @@ async def model_testing_page(request: Request, lang: str = Query("ko", descripti
     </body>
     </html>
     """
-
 @web_app.get("/crewai-system", response_class=HTMLResponse)
 async def crewai_system_page(request: Request, lang: str = Query("ko", description="Language code")):
     """CrewAI Specialized Agent Teams 페이지"""
@@ -9740,7 +9993,6 @@ async def crewai_system_page(request: Request, lang: str = Query("ko", descripti
                 </div>
             </div>
         </div>
-
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
             // Timezone management
@@ -10301,7 +10553,6 @@ async def llm_slm_page(request: Request, lang: str = Query("ko", description="La
     </body>
     </html>
     """
-
 @web_app.get("/agent-system", response_class=HTMLResponse)
 async def agent_system_page(request: Request, lang: str = Query("ko", description="Language code")):
     """AI 에이전트 시스템 관리 페이지"""
@@ -10460,16 +10711,43 @@ async def agent_system_page(request: Request, lang: str = Query("ko", descriptio
                 margin: 10px 0;
                 cursor: pointer;
                 transition: all 0.3s ease;
+                position: relative;
+                background: #ffffff;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
             }}
             
             .site-option:hover {{
                 border-color: var(--primary-color);
                 background: #f8fafc;
+                transform: translateY(-2px);
             }}
             
             .site-option.active {{
                 border-color: var(--primary-color);
                 background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+                box-shadow: 0 6px 18px rgba(79, 70, 229, 0.15);
+                transform: translateY(-3px) scale(1.01);
+            }}
+            
+            .site-option.inactive {{
+                opacity: 0.6;
+                filter: grayscale(10%);
+            }}
+            
+            .site-option .status-dot {{
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: #9ca3af;
+                transition: background 0.3s ease, transform 0.3s ease;
+            }}
+            
+            .site-option.active .status-dot {{
+                background: #10b981;
+                transform: scale(1.2);
             }}
             
             .chart-container {{
@@ -10584,6 +10862,7 @@ async def agent_system_page(request: Request, lang: str = Query("ko", descriptio
                                     <p class="mb-0 text-muted">Finland - 극한 기후</p>
                                 </div>
                             </div>
+                            <div class="status-dot"></div>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -10595,6 +10874,7 @@ async def agent_system_page(request: Request, lang: str = Query("ko", descriptio
                                     <p class="mb-0 text-muted">Sweden - 실증 연구</p>
                                 </div>
                             </div>
+                            <div class="status-dot"></div>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -10606,6 +10886,7 @@ async def agent_system_page(request: Request, lang: str = Query("ko", descriptio
                                     <p class="mb-0 text-muted">Romania - IoT 시스템</p>
                                 </div>
                             </div>
+                            <div class="status-dot"></div>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -10617,11 +10898,11 @@ async def agent_system_page(request: Request, lang: str = Query("ko", descriptio
                                     <p class="mb-0 text-muted">Greece - 상업 빌딩</p>
                                 </div>
                             </div>
+                            <div class="status-dot"></div>
                         </div>
                     </div>
                 </div>
             </div>
-            
             <!-- AI 에이전트 목록 -->
             <div class="row">
                 <div class="col-12">
@@ -11214,7 +11495,6 @@ async def agent_system_page(request: Request, lang: str = Query("ko", descriptio
                 </div>
             </div>
         </div>
-        
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
             // 사이트 선택
@@ -11460,4 +11740,3 @@ async def agent_system_page(request: Request, lang: str = Query("ko", descriptio
 
 if __name__ == "__main__":
     uvicorn.run(web_app, host="0.0.0.0", port=8000)
-
