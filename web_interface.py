@@ -4,37 +4,176 @@
 Health 카드와 메뉴에 기존 페이지들을 연결한 플랫폼
 """
 
-from fastapi import FastAPI, Request, Query, Body, HTTPException, Form
+from fastapi import FastAPI, Request, Query, Body, HTTPException, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 import uvicorn
 import hashlib
 import secrets
+import sqlite3
+import json
+import re
 
 # FastAPI 앱 생성
 web_app = FastAPI(title="Digital Experience Intelligence Platform", version="2.0.0")
 
-# 간단한 사용자 데이터베이스 (실제 구현에서는 데이터베이스 사용)
-users_db = {
-    "admin@horizon.com": {
-        "password": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",  # "password"의 SHA256
-        "name": "관리자",
-        "role": "admin"
-    },
-    "demo@horizon.com": {
-        "password": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",  # "password"의 SHA256
-        "name": "데모 사용자",
-        "role": "user"
-    }
-}
+# 데이터베이스 초기화
+def init_database():
+    """SQLite 데이터베이스 초기화"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    # 사용자 테이블 생성
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            name TEXT NOT NULL,
+            role TEXT DEFAULT 'user',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active BOOLEAN DEFAULT 1,
+            email_verified BOOLEAN DEFAULT 0
+        )
+    ''')
+    
+    # 세션 테이블 생성
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_token TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            is_active BOOLEAN DEFAULT 1,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # 기본 관리자 계정 생성
+    admin_password = hashlib.sha256("admin123!".encode()).hexdigest()
+    cursor.execute('''
+        INSERT OR IGNORE INTO users (email, password_hash, name, role, email_verified)
+        VALUES (?, ?, ?, ?, ?)
+    ''', ("admin@horizon.com", admin_password, "시스템 관리자", "admin", 1))
+    
+    # 데모 사용자 계정 생성
+    demo_password = hashlib.sha256("demo123!".encode()).hexdigest()
+    cursor.execute('''
+        INSERT OR IGNORE INTO users (email, password_hash, name, role, email_verified)
+        VALUES (?, ?, ?, ?, ?)
+    ''', ("demo@horizon.com", demo_password, "데모 사용자", "user", 1))
+    
+    conn.commit()
+    conn.close()
 
-# 세션 관리 (실제 구현에서는 Redis 등 사용)
+# 데이터베이스 초기화 실행
+init_database()
+
+# 세션 관리 (메모리 기반, 실제 운영에서는 Redis 사용)
 active_sessions = {}
 
 def get_available_languages():
     """사용 가능한 언어 목록 반환"""
     return ["ko", "en", "ja", "zh"]
+
+def validate_email(email):
+    """이메일 형식 검증"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def validate_password(password):
+    """비밀번호 강도 검증"""
+    if len(password) < 8:
+        return False, "비밀번호는 최소 8자 이상이어야 합니다."
+    if not re.search(r'[A-Za-z]', password):
+        return False, "비밀번호는 영문자를 포함해야 합니다."
+    if not re.search(r'\d', password):
+        return False, "비밀번호는 숫자를 포함해야 합니다."
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False, "비밀번호는 특수문자를 포함해야 합니다."
+    return True, "유효한 비밀번호입니다."
+
+def get_user_by_email(email):
+    """이메일로 사용자 조회"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE email = ? AND is_active = 1', (email,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+def create_user(email, password, name, role='user'):
+    """새 사용자 생성"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO users (email, password_hash, name, role, email_verified)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (email, password_hash, name, role, 0))
+        
+        user_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return True, user_id, "회원가입이 완료되었습니다."
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False, None, "이미 존재하는 이메일입니다."
+    except Exception as e:
+        conn.close()
+        return False, None, f"회원가입 중 오류가 발생했습니다: {str(e)}"
+
+def create_session(user_id, expires_hours=24):
+    """세션 생성"""
+    session_token = secrets.token_urlsafe(32)
+    expires_at = datetime.now() + timedelta(hours=expires_hours)
+    
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO sessions (session_token, user_id, expires_at)
+        VALUES (?, ?, ?)
+    ''', (session_token, user_id, expires_at))
+    
+    conn.commit()
+    conn.close()
+    
+    return session_token, expires_at
+
+def get_session(session_token):
+    """세션 조회"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT s.*, u.email, u.name, u.role
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.session_token = ? AND s.is_active = 1 AND s.expires_at > ?
+    ''', (session_token, datetime.now()))
+    
+    session = cursor.fetchone()
+    conn.close()
+    return session
+
+def invalidate_session(session_token):
+    """세션 무효화"""
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        UPDATE sessions SET is_active = 0 WHERE session_token = ?
+    ''', (session_token,))
+    
+    conn.commit()
+    conn.close()
 
 def load_translations():
     """번역 파일 로드"""
@@ -788,7 +927,7 @@ async def login_page(request: Request, lang: str = Query("ko", description="Lang
             
             // 회원가입
             function showSignup() {{
-                alert('회원가입 페이지가 곧 오픈됩니다!\\n\\n현재는 데모 버전으로 로그인해주세요.');
+                window.location.href = '/signup?lang={lang}';
             }}
             
             // 로딩 표시
@@ -822,67 +961,685 @@ async def login_page(request: Request, lang: str = Query("ko", description="Lang
     </html>
     """
 
+@web_app.get("/signup", response_class=HTMLResponse)
+async def signup_page(request: Request, lang: str = Query("ko", description="Language code")):
+    """회원가입 페이지"""
+    # 언어 설정
+    if lang not in get_available_languages():
+        lang = "ko"
+    
+    return f"""
+    <!DOCTYPE html>
+    <html lang="{lang}">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>📝 HORIZON Energy Platform - 회원가입</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            :root {{
+                --primary-color: #4f46e5;
+                --secondary-color: #06b6d4;
+                --success-color: #10b981;
+                --warning-color: #f59e0b;
+                --danger-color: #ef4444;
+                --dark-color: #1e293b;
+                --light-color: #f8fafc;
+            }}
+            
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }}
+            
+            body {{
+                font-family: 'Inter', sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }}
+            
+            .signup-container {{
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(20px);
+                border-radius: 24px;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                padding: 0;
+                max-width: 1000px;
+                width: 100%;
+                overflow: hidden;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }}
+            
+            .signup-left {{
+                background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+                color: white;
+                padding: 60px 40px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-height: 600px;
+            }}
+            
+            .signup-right {{
+                padding: 60px 40px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                min-height: 600px;
+            }}
+            
+            .logo {{
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }}
+            
+            .tagline {{
+                font-size: 1.2rem;
+                opacity: 0.9;
+                margin-bottom: 30px;
+                line-height: 1.6;
+            }}
+            
+            .benefits {{
+                list-style: none;
+                margin-bottom: 40px;
+            }}
+            
+            .benefits li {{
+                display: flex;
+                align-items: center;
+                margin-bottom: 15px;
+                font-size: 1rem;
+                opacity: 0.9;
+            }}
+            
+            .benefits i {{
+                margin-right: 12px;
+                font-size: 1.1rem;
+                width: 20px;
+            }}
+            
+            .signup-form {{
+                width: 100%;
+                max-width: 400px;
+                margin: 0 auto;
+            }}
+            
+            .form-title {{
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--dark-color);
+                margin-bottom: 10px;
+                text-align: center;
+            }}
+            
+            .form-subtitle {{
+                color: #6b7280;
+                text-align: center;
+                margin-bottom: 40px;
+                font-size: 1rem;
+            }}
+            
+            .form-group {{
+                margin-bottom: 25px;
+            }}
+            
+            .form-label {{
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 500;
+                color: var(--dark-color);
+                font-size: 0.9rem;
+            }}
+            
+            .form-control {{
+                width: 100%;
+                padding: 15px 20px;
+                border: 2px solid #e5e7eb;
+                border-radius: 12px;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+                background: #f9fafb;
+            }}
+            
+            .form-control:focus {{
+                outline: none;
+                border-color: var(--primary-color);
+                background: white;
+                box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            }}
+            
+            .form-control.error {{
+                border-color: var(--danger-color);
+            }}
+            
+            .form-control.success {{
+                border-color: var(--success-color);
+            }}
+            
+            .error-message {{
+                color: var(--danger-color);
+                font-size: 0.8rem;
+                margin-top: 5px;
+                display: none;
+            }}
+            
+            .success-message {{
+                color: var(--success-color);
+                font-size: 0.8rem;
+                margin-top: 5px;
+                display: none;
+            }}
+            
+            .btn-signup {{
+                width: 100%;
+                padding: 15px;
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin-bottom: 20px;
+            }}
+            
+            .btn-signup:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+            }}
+            
+            .btn-signup:disabled {{
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+            }}
+            
+            .login-link {{
+                text-align: center;
+                margin-top: 30px;
+                color: #6b7280;
+                font-size: 0.9rem;
+            }}
+            
+            .login-link a {{
+                color: var(--primary-color);
+                text-decoration: none;
+                font-weight: 500;
+            }}
+            
+            .login-link a:hover {{
+                text-decoration: underline;
+            }}
+            
+            .password-strength {{
+                margin-top: 5px;
+                font-size: 0.8rem;
+            }}
+            
+            .strength-bar {{
+                height: 4px;
+                background: #e5e7eb;
+                border-radius: 2px;
+                margin-top: 5px;
+                overflow: hidden;
+            }}
+            
+            .strength-fill {{
+                height: 100%;
+                transition: all 0.3s ease;
+                border-radius: 2px;
+            }}
+            
+            .strength-weak {{ background: var(--danger-color); width: 25%; }}
+            .strength-fair {{ background: var(--warning-color); width: 50%; }}
+            .strength-good {{ background: #3b82f6; width: 75%; }}
+            .strength-strong {{ background: var(--success-color); width: 100%; }}
+            
+            .language-selector {{
+                position: absolute;
+                top: 20px;
+                left: 20px;
+            }}
+            
+            .language-selector select {{
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 8px;
+                font-size: 0.9rem;
+            }}
+            
+            .language-selector select option {{
+                background: var(--dark-color);
+                color: white;
+            }}
+            
+            @media (max-width: 768px) {{
+                .signup-container {{
+                    flex-direction: column;
+                }}
+                
+                .signup-left {{
+                    min-height: 300px;
+                    padding: 40px 30px;
+                }}
+                
+                .signup-right {{
+                    padding: 40px 30px;
+                }}
+                
+                .logo {{
+                    font-size: 2rem;
+                }}
+                
+                .form-title {{
+                    font-size: 1.5rem;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="language-selector">
+            <select onchange="changeLanguage(this.value)">
+                <option value="ko" {'selected' if lang == 'ko' else ''}>🇰🇷 한국어</option>
+                <option value="en" {'selected' if lang == 'en' else ''}>🇺🇸 English</option>
+                <option value="ja" {'selected' if lang == 'ja' else ''}>🇯🇵 日本語</option>
+                <option value="zh" {'selected' if lang == 'zh' else ''}>🇨🇳 中文</option>
+            </select>
+        </div>
+        
+        <div class="signup-container">
+            <div class="row g-0 h-100">
+                <div class="col-lg-6">
+                    <div class="signup-left">
+                        <div class="logo">
+                            <i class="fas fa-user-plus"></i>
+                            HORIZON Energy
+                        </div>
+                        <div class="tagline">
+                            지속가능한 에너지 미래를 위한<br>
+                            첫 걸음을 시작하세요
+                        </div>
+                        <ul class="benefits">
+                            <li>
+                                <i class="fas fa-shield-alt"></i>
+                                안전하고 보안된 계정 관리
+                            </li>
+                            <li>
+                                <i class="fas fa-chart-line"></i>
+                                실시간 에너지 데이터 분석
+                            </li>
+                            <li>
+                                <i class="fas fa-robot"></i>
+                                AI 기반 자동 최적화
+                            </li>
+                            <li>
+                                <i class="fas fa-globe"></i>
+                                글로벌 에너지 거래 플랫폼
+                            </li>
+                            <li>
+                                <i class="fas fa-headset"></i>
+                                24/7 고객 지원
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="signup-right">
+                        <div class="signup-form">
+                            <h2 class="form-title">회원가입</h2>
+                            <p class="form-subtitle">HORIZON Energy Platform에 가입하세요</p>
+                            
+                            <form id="signupForm">
+                                <div class="form-group">
+                                    <label class="form-label" for="name">이름</label>
+                                    <input type="text" class="form-control" id="name" placeholder="홍길동" required>
+                                    <div class="error-message" id="nameError"></div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="email">이메일 주소</label>
+                                    <input type="email" class="form-control" id="email" placeholder="your@email.com" required>
+                                    <div class="error-message" id="emailError"></div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="password">비밀번호</label>
+                                    <input type="password" class="form-control" id="password" placeholder="비밀번호를 입력하세요" required>
+                                    <div class="password-strength" id="passwordStrength"></div>
+                                    <div class="strength-bar">
+                                        <div class="strength-fill" id="strengthBar"></div>
+                                    </div>
+                                    <div class="error-message" id="passwordError"></div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="confirmPassword">비밀번호 확인</label>
+                                    <input type="password" class="form-control" id="confirmPassword" placeholder="비밀번호를 다시 입력하세요" required>
+                                    <div class="error-message" id="confirmPasswordError"></div>
+                                </div>
+                                
+                                <button type="submit" class="btn-signup" id="signupBtn">
+                                    <i class="fas fa-user-plus"></i>
+                                    회원가입
+                                </button>
+                            </form>
+                            
+                            <div class="login-link">
+                                이미 계정이 있으신가요? <a href="/login?lang={lang}">로그인</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // 언어 변경
+            function changeLanguage(lang) {{
+                window.location.href = `/signup?lang=${{lang}}`;
+            }}
+            
+            // 비밀번호 강도 검사
+            function checkPasswordStrength(password) {{
+                let score = 0;
+                let feedback = '';
+                
+                if (password.length >= 8) score++;
+                if (/[A-Za-z]/.test(password)) score++;
+                if (/\d/.test(password)) score++;
+                if (/[!@#$%^&*(),.?":{{}}|<>]/.test(password)) score++;
+                
+                const strengthBar = document.getElementById('strengthBar');
+                const strengthText = document.getElementById('passwordStrength');
+                
+                strengthBar.className = 'strength-fill';
+                
+                if (score === 0) {{
+                    strengthBar.classList.add('strength-weak');
+                    feedback = '매우 약함';
+                }} else if (score === 1) {{
+                    strengthBar.classList.add('strength-weak');
+                    feedback = '약함';
+                }} else if (score === 2) {{
+                    strengthBar.classList.add('strength-fair');
+                    feedback = '보통';
+                }} else if (score === 3) {{
+                    strengthBar.classList.add('strength-good');
+                    feedback = '좋음';
+                }} else {{
+                    strengthBar.classList.add('strength-strong');
+                    feedback = '강함';
+                }}
+                
+                strengthText.textContent = `비밀번호 강도: ${{feedback}}`;
+                return score >= 3;
+            }}
+            
+            // 폼 검증
+            function validateForm() {{
+                const name = document.getElementById('name').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                
+                let isValid = true;
+                
+                // 이름 검증
+                if (name.length < 2) {{
+                    showError('nameError', '이름은 최소 2자 이상이어야 합니다.');
+                    isValid = false;
+                }} else {{
+                    hideError('nameError');
+                }}
+                
+                // 이메일 검증
+                const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+                if (!emailPattern.test(email)) {{
+                    showError('emailError', '올바른 이메일 형식을 입력해주세요.');
+                    isValid = false;
+                }} else {{
+                    hideError('emailError');
+                }}
+                
+                // 비밀번호 검증
+                if (password.length < 8) {{
+                    showError('passwordError', '비밀번호는 최소 8자 이상이어야 합니다.');
+                    isValid = false;
+                }} else if (!checkPasswordStrength(password)) {{
+                    showError('passwordError', '비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.');
+                    isValid = false;
+                }} else {{
+                    hideError('passwordError');
+                }}
+                
+                // 비밀번호 확인 검증
+                if (password !== confirmPassword) {{
+                    showError('confirmPasswordError', '비밀번호가 일치하지 않습니다.');
+                    isValid = false;
+                }} else {{
+                    hideError('confirmPasswordError');
+                }}
+                
+                return isValid;
+            }}
+            
+            function showError(elementId, message) {{
+                const element = document.getElementById(elementId);
+                element.textContent = message;
+                element.style.display = 'block';
+                element.previousElementSibling.classList.add('error');
+                element.previousElementSibling.classList.remove('success');
+            }}
+            
+            function hideError(elementId) {{
+                const element = document.getElementById(elementId);
+                element.style.display = 'none';
+                element.previousElementSibling.classList.remove('error');
+                element.previousElementSibling.classList.add('success');
+            }}
+            
+            // 이벤트 리스너
+            document.getElementById('password').addEventListener('input', function() {{
+                checkPasswordStrength(this.value);
+            }});
+            
+            document.getElementById('signupForm').addEventListener('submit', async function(e) {{
+                e.preventDefault();
+                
+                if (!validateForm()) {{
+                    return;
+                }}
+                
+                const name = document.getElementById('name').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                
+                const signupBtn = document.getElementById('signupBtn');
+                signupBtn.disabled = true;
+                signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 가입 중...';
+                
+                try {{
+                    const formData = new FormData();
+                    formData.append('name', name);
+                    formData.append('email', email);
+                    formData.append('password', password);
+                    
+                    const response = await fetch('/api/signup', {{
+                        method: 'POST',
+                        body: formData
+                    }});
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {{
+                        alert('회원가입이 완료되었습니다!\\n\\n로그인 페이지로 이동합니다.');
+                        window.location.href = '/login?lang={lang}';
+                    }} else {{
+                        alert(result.message);
+                        signupBtn.disabled = false;
+                        signupBtn.innerHTML = '<i class="fas fa-user-plus"></i> 회원가입';
+                    }}
+                }} catch (error) {{
+                    console.error('회원가입 오류:', error);
+                    alert('회원가입 중 오류가 발생했습니다. 다시 시도해주세요.');
+                    signupBtn.disabled = false;
+                    signupBtn.innerHTML = '<i class="fas fa-user-plus"></i> 회원가입';
+                }}
+            }});
+            
+            // 페이지 로드 시 애니메이션
+            document.addEventListener('DOMContentLoaded', function() {{
+                const container = document.querySelector('.signup-container');
+                container.style.opacity = '0';
+                container.style.transform = 'translateY(50px)';
+                
+                setTimeout(() => {{
+                    container.style.transition = 'all 0.8s ease';
+                    container.style.opacity = '1';
+                    container.style.transform = 'translateY(0)';
+                }}, 100);
+            }});
+        </script>
+    </body>
+    </html>
+    """
+
 @web_app.post("/api/login")
 async def login_api(email: str = Form(...), password: str = Form(...)):
     """로그인 API 엔드포인트"""
-    # 비밀번호 해시화
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
-    
-    # 사용자 확인
-    if email in users_db and users_db[email]["password"] == password_hash:
-        # 세션 토큰 생성
-        session_token = secrets.token_urlsafe(32)
-        active_sessions[session_token] = {
-            "email": email,
-            "name": users_db[email]["name"],
-            "role": users_db[email]["role"],
-            "login_time": datetime.now().isoformat()
-        }
-        
+    # 이메일 형식 검증
+    if not validate_email(email):
         return JSONResponse({
-            "success": True,
-            "message": "로그인 성공",
-            "session_token": session_token,
-            "user": {
-                "email": email,
-                "name": users_db[email]["name"],
-                "role": users_db[email]["role"]
-            }
-        })
-    else:
+            "success": False,
+            "message": "올바른 이메일 형식을 입력해주세요."
+        }, status_code=400)
+    
+    # 사용자 조회
+    user = get_user_by_email(email)
+    if not user:
         return JSONResponse({
             "success": False,
             "message": "이메일 또는 비밀번호가 올바르지 않습니다."
         }, status_code=401)
+    
+    # 비밀번호 확인
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    if user[2] != password_hash:  # password_hash는 인덱스 2
+        return JSONResponse({
+            "success": False,
+            "message": "이메일 또는 비밀번호가 올바르지 않습니다."
+        }, status_code=401)
+    
+    # 세션 생성
+    session_token, expires_at = create_session(user[0])  # user[0]은 user_id
+    
+    return JSONResponse({
+        "success": True,
+        "message": "로그인 성공",
+        "session_token": session_token,
+        "user": {
+            "id": user[0],
+            "email": user[1],
+            "name": user[2],
+            "role": user[4]
+        }
+    })
+
+@web_app.post("/api/signup")
+async def signup_api(name: str = Form(...), email: str = Form(...), password: str = Form(...)):
+    """회원가입 API 엔드포인트"""
+    # 이메일 형식 검증
+    if not validate_email(email):
+        return JSONResponse({
+            "success": False,
+            "message": "올바른 이메일 형식을 입력해주세요."
+        }, status_code=400)
+    
+    # 비밀번호 강도 검증
+    is_valid_password, password_message = validate_password(password)
+    if not is_valid_password:
+        return JSONResponse({
+            "success": False,
+            "message": password_message
+        }, status_code=400)
+    
+    # 이름 길이 검증
+    if len(name.strip()) < 2:
+        return JSONResponse({
+            "success": False,
+            "message": "이름은 최소 2자 이상이어야 합니다."
+        }, status_code=400)
+    
+    # 사용자 생성
+    success, user_id, message = create_user(email, password, name.strip())
+    
+    if success:
+        return JSONResponse({
+            "success": True,
+            "message": message,
+            "user_id": user_id
+        })
+    else:
+        return JSONResponse({
+            "success": False,
+            "message": message
+        }, status_code=400)
 
 @web_app.post("/api/logout")
 async def logout_api(session_token: str = Form(...)):
     """로그아웃 API 엔드포인트"""
-    if session_token in active_sessions:
-        del active_sessions[session_token]
-        return JSONResponse({
-            "success": True,
-            "message": "로그아웃 성공"
-        })
-    else:
+    # 세션 조회
+    session = get_session(session_token)
+    if not session:
         return JSONResponse({
             "success": False,
             "message": "유효하지 않은 세션"
         }, status_code=401)
+    
+    # 세션 무효화
+    invalidate_session(session_token)
+    
+    return JSONResponse({
+        "success": True,
+        "message": "로그아웃 성공"
+    })
 
 @web_app.get("/api/user")
 async def get_user_info(session_token: str = Query(...)):
     """사용자 정보 조회 API"""
-    if session_token in active_sessions:
-        return JSONResponse({
-            "success": True,
-            "user": active_sessions[session_token]
-        })
-    else:
+    # 세션 조회
+    session = get_session(session_token)
+    if not session:
         return JSONResponse({
             "success": False,
             "message": "유효하지 않은 세션"
         }, status_code=401)
+    
+    return JSONResponse({
+        "success": True,
+        "user": {
+            "id": session[2],  # user_id
+            "email": session[6],  # email
+            "name": session[7],  # name
+            "role": session[8]   # role
+        }
+    })
 
 @web_app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, lang: str = Query("ko", description="Language code"), logged_in: bool = Query(False, description="User login status")):
