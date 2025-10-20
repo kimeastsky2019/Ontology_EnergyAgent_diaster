@@ -81,7 +81,8 @@ def get_available_languages():
 
 def validate_email(email):
     """이메일 형식 검증"""
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    # 더 관대한 이메일 패턴 (한국어 도메인 포함)
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z가-힣]{2,}$'
     return re.match(pattern, email) is not None
 
 def validate_password(password):
@@ -1208,6 +1209,93 @@ async def signup_page(request: Request, lang: str = Query("ko", description="Lan
             .strength-good {{ background: #3b82f6; width: 75%; }}
             .strength-strong {{ background: var(--success-color); width: 100%; }}
             
+            .divider {{
+                text-align: center;
+                margin: 30px 0;
+                position: relative;
+                color: #6b7280;
+                font-size: 0.9rem;
+            }}
+            
+            .divider::before {{
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                height: 1px;
+                background: #e5e7eb;
+            }}
+            
+            .divider span {{
+                background: white;
+                padding: 0 20px;
+                position: relative;
+            }}
+            
+            .social-login {{
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }}
+            
+            .btn-social {{
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 15px;
+                border: 2px solid #e5e7eb;
+                border-radius: 12px;
+                background: white;
+                color: var(--dark-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                cursor: pointer;
+            }}
+            
+            .btn-social:hover {{
+                border-color: var(--primary-color);
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+                color: var(--primary-color);
+            }}
+            
+            .btn-google {{
+                border-color: #db4437;
+                color: #db4437;
+            }}
+            
+            .btn-google:hover {{
+                background: #db4437;
+                color: white;
+            }}
+            
+            .btn-apple {{
+                border-color: #000;
+                color: #000;
+            }}
+            
+            .btn-apple:hover {{
+                background: #000;
+                color: white;
+            }}
+            
+            .btn-facebook {{
+                border-color: #1877f2;
+                color: #1877f2;
+            }}
+            
+            .btn-facebook:hover {{
+                background: #1877f2;
+                color: white;
+            }}
+            
+            .social-icon {{
+                margin-right: 12px;
+                font-size: 1.2rem;
+            }}
+            
             .language-selector {{
                 position: absolute;
                 top: 20px;
@@ -1339,6 +1427,27 @@ async def signup_page(request: Request, lang: str = Query("ko", description="Lan
                                 </button>
                             </form>
                             
+                            <div class="divider">
+                                <span>또는 소셜 계정으로 가입</span>
+                            </div>
+                            
+                            <div class="social-login">
+                                <a href="#" class="btn-social btn-google" onclick="socialSignup('google')">
+                                    <i class="fab fa-google social-icon"></i>
+                                    Google로 가입하기
+                                </a>
+                                
+                                <a href="#" class="btn-social btn-apple" onclick="socialSignup('apple')">
+                                    <i class="fab fa-apple social-icon"></i>
+                                    Apple로 가입하기
+                                </a>
+                                
+                                <a href="#" class="btn-social btn-facebook" onclick="socialSignup('facebook')">
+                                    <i class="fab fa-facebook-f social-icon"></i>
+                                    Facebook으로 가입하기
+                                </a>
+                            </div>
+                            
                             <div class="login-link">
                                 이미 계정이 있으신가요? <a href="/login?lang={lang}">로그인</a>
                             </div>
@@ -1408,8 +1517,8 @@ async def signup_page(request: Request, lang: str = Query("ko", description="Lan
                     hideError('nameError');
                 }}
                 
-                // 이메일 검증
-                const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+                // 이메일 검증 (더 관대한 패턴)
+                const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z가-힣]{2,}$/;
                 if (!emailPattern.test(email)) {{
                     showError('emailError', '올바른 이메일 형식을 입력해주세요.');
                     isValid = false;
@@ -1452,6 +1561,20 @@ async def signup_page(request: Request, lang: str = Query("ko", description="Lan
                 element.style.display = 'none';
                 element.previousElementSibling.classList.remove('error');
                 element.previousElementSibling.classList.add('success');
+            }}
+            
+            // 소셜 가입
+            function socialSignup(provider) {{
+                const signupBtn = document.getElementById('signupBtn');
+                signupBtn.disabled = true;
+                signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 가입 중...';
+                
+                // 실제 소셜 가입 구현 (현재는 데모)
+                setTimeout(() => {{
+                    alert(`${{provider}} 가입이 구현되었습니다!\\n\\n현재는 데모 버전으로 일반 회원가입을 이용해주세요.`);
+                    signupBtn.disabled = false;
+                    signupBtn.innerHTML = '<i class="fas fa-user-plus"></i> 회원가입';
+                }}, 1500);
             }}
             
             // 이벤트 리스너
@@ -1600,6 +1723,101 @@ async def signup_api(name: str = Form(...), email: str = Form(...), password: st
             "success": False,
             "message": message
         }, status_code=400)
+
+@web_app.post("/api/social-signup")
+async def social_signup_api(provider: str = Form(...), email: str = Form(...), name: str = Form(...), social_id: str = Form(...)):
+    """소셜 회원가입 API 엔드포인트"""
+    # 이메일 형식 검증
+    if not validate_email(email):
+        return JSONResponse({
+            "success": False,
+            "message": "올바른 이메일 형식을 입력해주세요."
+        }, status_code=400)
+    
+    # 이름 길이 검증
+    if len(name.strip()) < 2:
+        return JSONResponse({
+            "success": False,
+            "message": "이름은 최소 2자 이상이어야 합니다."
+        }, status_code=400)
+    
+    # 소셜 ID로 기존 사용자 확인
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    try:
+        # 소셜 계정으로 이미 가입된 사용자인지 확인
+        cursor.execute('SELECT * FROM users WHERE email = ? AND role LIKE ?', (email, f'%{provider}%'))
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            conn.close()
+            return JSONResponse({
+                "success": False,
+                "message": "이미 가입된 소셜 계정입니다."
+            }, status_code=400)
+        
+        # 새 소셜 사용자 생성
+        role = f"user_{provider}"
+        cursor.execute('''
+            INSERT INTO users (email, password_hash, name, role, email_verified)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (email, f"social_{social_id}", name.strip(), role, 1))
+        
+        user_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"{provider} 계정으로 회원가입이 완료되었습니다.",
+            "user_id": user_id
+        })
+        
+    except sqlite3.IntegrityError:
+        conn.close()
+        return JSONResponse({
+            "success": False,
+            "message": "이미 존재하는 이메일입니다."
+        }, status_code=400)
+    except Exception as e:
+        conn.close()
+        return JSONResponse({
+            "success": False,
+            "message": f"소셜 가입 중 오류가 발생했습니다: {str(e)}"
+        }, status_code=500)
+
+@web_app.post("/api/social-login")
+async def social_login_api(provider: str = Form(...), email: str = Form(...), social_id: str = Form(...)):
+    """소셜 로그인 API 엔드포인트"""
+    # 사용자 조회
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM users WHERE email = ? AND role LIKE ? AND is_active = 1', (email, f'%{provider}%'))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if not user:
+        return JSONResponse({
+            "success": False,
+            "message": f"{provider} 계정으로 가입된 사용자가 아닙니다."
+        }, status_code=401)
+    
+    # 세션 생성
+    session_token, expires_at = create_session(user[0])
+    
+    return JSONResponse({
+        "success": True,
+        "message": f"{provider} 로그인 성공",
+        "session_token": session_token,
+        "user": {
+            "id": user[0],
+            "email": user[1],
+            "name": user[3],
+            "role": user[4]
+        }
+    })
 
 @web_app.post("/api/logout")
 async def logout_api(session_token: str = Form(...)):
