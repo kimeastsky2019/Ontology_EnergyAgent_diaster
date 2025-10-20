@@ -44,3 +44,4 @@ web_interface_simple.py
 react-weather-app/node_modules/
 energy-analysis-mcp/
 *.tar.gz
+.venv/
