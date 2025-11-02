@@ -1,7 +1,7 @@
 """Authentication endpoints"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -9,6 +9,8 @@ from passlib.context import CryptContext
 from src.database import get_db
 from src.models.user import User
 from src.config import settings
+from src.schemas.auth import UserRegister, Token, UserResponse
+from typing import Dict
 
 router = APIRouter()
 
@@ -39,11 +41,15 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return encoded_jwt
 
 
-@router.post("/register")
-async def register(email: str, password: str, full_name: str = None, db: Session = Depends(get_db)):
+@router.post("/register", response_model=Dict[str, Any])
+async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     """Register new user"""
+    from sqlalchemy import select
+    
     # Check if user exists
-    existing_user = db.query(User).filter(User.email == email).first()
+    result = await db.execute(select(User).filter(User.email == user_data.email))
+    existing_user = result.scalar_one_or_none()
+    
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -52,23 +58,27 @@ async def register(email: str, password: str, full_name: str = None, db: Session
     
     # Create new user
     user = User(
-        email=email,
-        password_hash=get_password_hash(password),
-        full_name=full_name,
+        email=user_data.email,
+        password_hash=get_password_hash(user_data.password),
+        full_name=user_data.full_name,
         role="user"
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     
     return {"message": "User registered successfully", "user_id": str(user.id)}
 
 
-@router.post("/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@router.post("/login", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     """Login and get access token"""
+    from sqlalchemy import select
+    
     # Get user
-    user = db.query(User).filter(User.email == form_data.username).first()
+    result = await db.execute(select(User).filter(User.email == form_data.username))
+    user = result.scalar_one_or_none()
+    
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -89,16 +99,18 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
         expires_delta=access_token_expires
     )
     
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_id": str(user.id),
-        "role": user.role
-    }
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        user_id=str(user.id),
+        role=user.role
+    )
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
     """Get current authenticated user"""
+    from sqlalchemy import select
+    
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -112,22 +124,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     except JWTError:
         raise credentials_exception
     
-    user = db.query(User).filter(User.email == email).first()
+    result = await db.execute(select(User).filter(User.email == email))
+    user = result.scalar_one_or_none()
+    
     if user is None:
         raise credentials_exception
     return user
 
 
-@router.get("/me")
+@router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Get current user info"""
-    return {
-        "id": str(current_user.id),
-        "email": current_user.email,
-        "full_name": current_user.full_name,
-        "role": current_user.role,
-        "is_active": current_user.is_active
-    }
+    return UserResponse(
+        id=str(current_user.id),
+        email=current_user.email,
+        full_name=current_user.full_name,
+        role=current_user.role,
+        is_active=current_user.is_active,
+        organization_id=str(current_user.organization_id) if current_user.organization_id else None
+    )
 
 
 

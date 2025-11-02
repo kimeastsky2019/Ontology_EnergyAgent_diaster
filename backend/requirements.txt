@@ -45,6 +45,8 @@ rdflib==7.0.0
 python-dotenv==1.0.0
 python-dateutil==2.8.2
 pytz==2023.3
+numpy==1.24.3
+pandas==2.0.3
 
 # Monitoring
 prometheus-client==0.19.0
