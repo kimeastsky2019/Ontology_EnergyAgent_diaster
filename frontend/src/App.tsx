@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import Home from './pages/Home'
 import Assets from './pages/Assets'
 import Login from './pages/Login'
+import Disaster from './pages/Disaster'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
             <Route path="/assets" element={<Assets />} />
+            <Route path="/disaster" element={<Disaster />} />
           </Route>
         </Route>
       </Routes>
