@@ -34,11 +34,22 @@ interface DisasterAnalysis {
   }
 }
 
+interface MCPAgent {
+  id: string
+  name?: string
+  type?: string
+  description?: string
+  registered_at?: string
+}
+
 const Disaster: React.FC = () => {
   const [disasterData, setDisasterData] = useState<any>({})
   const [analysis, setAnalysis] = useState<DisasterAnalysis | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mcpAgents, setMcpAgents] = useState<MCPAgent[]>([])
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
+  const [loadingAgents, setLoadingAgents] = useState(false)
 
   const handleAnalyze = async () => {
     setLoading(true)
@@ -76,6 +87,32 @@ const Disaster: React.FC = () => {
     }
   }
 
+  // MCP 에이전트 목록 가져오기
+  useEffect(() => {
+    const fetchAgents = async () => {
+      setLoadingAgents(true)
+      try {
+        // 인증 없이 접근 가능한 public 엔드포인트 사용
+        const response = await api.get('/api/v1/mcp/agents/public')
+        const agentsList = Object.entries(response.data.agents || {}).map(([id, info]: [string, any]) => ({
+          id,
+          ...info
+        }))
+        setMcpAgents(agentsList)
+        if (agentsList.length > 0 && !selectedAgent) {
+          setSelectedAgent(agentsList[0].id)
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch MCP agents:', err)
+        // 에러 발생 시에도 빈 목록으로 처리
+        setMcpAgents([])
+      } finally {
+        setLoadingAgents(false)
+      }
+    }
+    fetchAgents()
+  }, [selectedAgent])
+
   const getSeverityColor = (severity: string) => {
     switch (severity?.toLowerCase()) {
       case 'critical': return 'error'
@@ -98,6 +135,62 @@ const Disaster: React.FC = () => {
       </Box>
 
       <Grid container spacing={3}>
+        {/* MCP 에이전트 선택 섹션 */}
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                MCP 에이전트 선택
+              </Typography>
+              {loadingAgents ? (
+                <Typography variant="body2" color="text.secondary">
+                  에이전트 목록을 불러오는 중...
+                </Typography>
+              ) : mcpAgents.length > 0 ? (
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  {mcpAgents.map((agent) => (
+                    <Grid item xs={12} sm={6} md={4} key={agent.id}>
+                      <Paper
+                        sx={{
+                          p: 2,
+                          cursor: 'pointer',
+                          border: selectedAgent === agent.id ? 2 : 1,
+                          borderColor: selectedAgent === agent.id ? 'primary.main' : 'divider',
+                          bgcolor: selectedAgent === agent.id ? 'action.selected' : 'background.paper',
+                          '&:hover': {
+                            bgcolor: 'action.hover'
+                          }
+                        }}
+                        onClick={() => setSelectedAgent(agent.id)}
+                      >
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {agent.name || agent.id}
+                        </Typography>
+                        {agent.type && (
+                          <Chip
+                            label={agent.type}
+                            size="small"
+                            sx={{ mt: 1, mr: 1 }}
+                          />
+                        )}
+                        {agent.description && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            {agent.description}
+                          </Typography>
+                        )}
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  등록된 MCP 에이전트가 없습니다.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
         <Grid item xs={12}>
           <Card>
             <CardContent>
@@ -105,11 +198,18 @@ const Disaster: React.FC = () => {
                 <Button
                   variant="contained"
                   onClick={handleAnalyze}
-                  disabled={loading}
+                  disabled={loading || !selectedAgent}
                   sx={{ mr: 2 }}
                 >
                   {loading ? '분석 중...' : '상황 분석 실행'}
                 </Button>
+                {selectedAgent && (
+                  <Chip
+                    label={`선택된 에이전트: ${mcpAgents.find(a => a.id === selectedAgent)?.name || selectedAgent}`}
+                    color="primary"
+                    sx={{ ml: 1 }}
+                  />
+                )}
               </Box>
 
               {error && (

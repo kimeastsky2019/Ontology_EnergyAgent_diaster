@@ -19,7 +19,7 @@ class EnergyAsset(Base):
     capacity_kw = Column(Numeric(10, 2))
     # location = Column(Geography(Point))  # TODO: Enable PostGIS
     status = Column(String(50))  # online, offline, maintenance, emergency
-    metadata = Column(JSON)
+    asset_metadata = Column("metadata", JSON)  # metadata는 SQLAlchemy 예약어이므로 컬럼명은 metadata로 유지하되 속성명은 asset_metadata로 변경
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

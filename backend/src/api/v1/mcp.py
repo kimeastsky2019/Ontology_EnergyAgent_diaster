@@ -24,6 +24,16 @@ async def list_agents(
     }
 
 
+@router.get("/agents/public")
+async def list_agents_public() -> Dict[str, Any]:
+    """List all registered MCP agents (public access, no auth required)"""
+    agents = mcp_service.registry.list_agents()
+    return {
+        "agents": agents,
+        "count": len(agents)
+    }
+
+
 @router.get("/agents/{agent_id}")
 async def get_agent_info(
     agent_id: str,

@@ -9,20 +9,37 @@ from typing import AsyncGenerator
 from src.config import settings
 
 # Create async database engine
-async_engine = create_async_engine(
-    settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
-    pool_size=settings.DATABASE_POOL_SIZE,
-    echo=settings.DEBUG,
-    pool_pre_ping=True,
-)
+database_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+# SQLite인 경우 pool_size를 사용하지 않음
+if "sqlite" in database_url.lower():
+    async_engine = create_async_engine(
+        database_url,
+        echo=settings.DEBUG,
+        connect_args={"check_same_thread": False} if "sqlite" in database_url.lower() else {},
+    )
+else:
+    async_engine = create_async_engine(
+        database_url,
+        pool_size=settings.DATABASE_POOL_SIZE,
+        echo=settings.DEBUG,
+        pool_pre_ping=True,
+    )
 
 # Create sync database engine (for migrations)
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_size=settings.DATABASE_POOL_SIZE,
-    echo=settings.DEBUG,
-    pool_pre_ping=True,
-)
+# SQLite인 경우 pool_size를 사용하지 않음
+if "sqlite" in settings.DATABASE_URL.lower():
+    engine = create_engine(
+        settings.DATABASE_URL,
+        echo=settings.DEBUG,
+        connect_args={"check_same_thread": False},
+    )
+else:
+    engine = create_engine(
+        settings.DATABASE_URL,
+        pool_size=settings.DATABASE_POOL_SIZE,
+        echo=settings.DEBUG,
+        pool_pre_ping=True,
+    )
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(

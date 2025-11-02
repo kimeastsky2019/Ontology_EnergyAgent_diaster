@@ -12,6 +12,12 @@ export default defineConfig({
   server: {
     port: 3000,
     host: '0.0.0.0', // 외부 접근 허용
+    allowedHosts: [
+      'damcp.gngmeta.com',
+      'localhost',
+      '127.0.0.1',
+      '.gngmeta.com', // 모든 gngmeta.com 서브도메인 허용
+    ],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

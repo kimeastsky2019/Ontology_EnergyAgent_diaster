@@ -90,18 +90,19 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # Include routers
-from src.api.v1 import auth, assets, orchestrator, mcp
+from src.api.v1 import auth, assets, orchestrator, mcp, energy_dashboard, weather
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(assets.router, prefix="/api/v1/assets", tags=["Assets"])
 app.include_router(orchestrator.router, prefix="/api/v1/orchestrator", tags=["Orchestrator"])
 app.include_router(mcp.router, prefix="/api/v1/mcp", tags=["MCP"])
+app.include_router(energy_dashboard.router, prefix="/api/v1/energy", tags=["Energy Dashboard"])
+app.include_router(weather.router, prefix="/api/v1/weather", tags=["Weather"])
 
 # TODO: Add more routers as they are created
-# from src.api.v1 import users, devices, energy, disasters
+# from src.api.v1 import users, devices, disasters
 # app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 # app.include_router(devices.router, prefix="/api/v1/devices", tags=["Devices"])
-# app.include_router(energy.router, prefix="/api/v1/energy", tags=["Energy"])
 # app.include_router(disasters.router, prefix="/api/v1/disasters", tags=["Disasters"])
 
 

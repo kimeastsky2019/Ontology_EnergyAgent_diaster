@@ -124,6 +124,8 @@ echo "  http://damcp.gngmeta.com"
 echo "  https://damcp.gngmeta.com"
 echo "  https://damcp.gngmeta.com/api/health"
 echo "  https://damcp.gngmeta.com/docs"
+echo "  https://damcp.gngmeta.com/disaster"
+
 
 ENDOFSCRIPT
 

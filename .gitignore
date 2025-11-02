@@ -82,5 +82,10 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# SSH Keys
+*.pem
+*.ppk
+google_compute_engine.*
+
 
 
