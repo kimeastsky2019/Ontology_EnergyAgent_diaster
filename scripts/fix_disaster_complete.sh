@@ -70,14 +70,23 @@ FRONTEND_PID=$(pgrep -f "vite.*3000" || echo "")
 if [ -n "$FRONTEND_PID" ]; then
     echo "✅ 프론트엔드 서버 실행 중 (PID: $FRONTEND_PID)"
 else
-    echo "⚠️  프론트엔드 서버 미실행"
-    echo "   수동으로 시작하세요:"
-    echo "   cd ${PROJECT_DIR}/frontend"
-    echo "   npm run dev"
-    echo ""
-    echo "   또는 백그라운드에서:"
-    echo "   cd ${PROJECT_DIR}/frontend"
-    echo "   nohup npm run dev > /tmp/frontend.log 2>&1 &"
+    echo "⚠️  프론트엔드 서버 미실행 - 시작 중..."
+    if [ -f "scripts/start_frontend.sh" ]; then
+        bash scripts/start_frontend.sh dev
+        sleep 2
+        FRONTEND_PID=$(pgrep -f "vite.*3000" || echo "")
+        if [ -n "$FRONTEND_PID" ]; then
+            echo "✅ 프론트엔드 서버 시작 성공 (PID: $FRONTEND_PID)"
+        else
+            echo "❌ 프론트엔드 서버 시작 실패"
+            echo "   수동으로 시작: bash scripts/start_frontend.sh"
+        fi
+    else
+        echo "⚠️  start_frontend.sh 스크립트를 찾을 수 없습니다"
+        echo "   수동으로 시작하세요:"
+        echo "   cd ${PROJECT_DIR}/frontend"
+        echo "   npm run dev"
+    fi
 fi
 
 echo ""
@@ -88,9 +97,7 @@ if [ -n "$BACKEND_PID" ]; then
     echo "✅ 백엔드 서버 실행 중 (PID: $BACKEND_PID)"
 else
     echo "⚠️  백엔드 서버 미실행"
-    echo "   필요시 시작하세요:"
-    echo "   cd ${PROJECT_DIR}/backend"
-    echo "   uvicorn src.main:app --host 0.0.0.0 --port 8000"
+    echo "   필요시 시작: bash scripts/start_backend.sh"
 fi
 
 echo ""

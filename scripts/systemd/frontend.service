@@ -1,0 +1,18 @@
+[Unit]
+Description=Energy Platform Frontend Server
+After=network.target
+
+[Service]
+Type=simple
+User=metal
+WorkingDirectory=/home/metal/energy-platform/frontend
+Environment="NODE_ENV=production"
+ExecStart=/usr/bin/npm run dev
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
