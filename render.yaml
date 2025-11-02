@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: energy-analysis-api
+    env: python
+    plan: free
+    buildCommand: pip install -r gcp/requirements.txt
+    startCommand: python server_cloud.py
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: info

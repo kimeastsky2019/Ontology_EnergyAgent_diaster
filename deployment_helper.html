@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GCP 배포 도우미</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .content {
+            padding: 40px;
+        }
+        .step {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 5px solid #667eea;
+        }
+        .step h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .download-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .file-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 GCP Compute Engine 배포 도우미</h1>
+            <p>전력/탄소 거래 플랫폼을 GCP에 쉽게 배포하세요</p>
+        </div>
+        
+        <div class="content">
+            <div class="status info">
+                <strong>📋 서버 정보:</strong> IP: 34.47.89.217 | 사용자: metal | 인증: ppk 키
+            </div>
+            
+            <div class="step">
+                <h3>1단계: 배포 파일 다운로드</h3>
+                <p>아래 버튼을 클릭하여 배포용 압축 파일을 다운로드하세요.</p>
+                <button class="download-btn" onclick="downloadFile()">
+                    📦 energy-analysis-mcp-deploy.tar.gz 다운로드
+                </button>
+                <div class="file-info">
+                    <strong>파일 크기:</strong> 129MB<br>
+                    <strong>포함 내용:</strong> 웹 인터페이스, 거래 플랫폼, AI 최적화 엔진, 글로벌 Demo Sites
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>2단계: 서버 접속</h3>
+                <p>PuTTY 또는 WinSCP를 사용하여 GCP 서버에 접속하세요.</p>
+                <div class="code-block">
+Host: 34.47.89.217<br>
+Port: 22<br>
+Username: metal<br>
+Authentication: ppk 키 파일 선택
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>3단계: 파일 업로드</h3>
+                <p>다운로드한 압축 파일을 서버의 /tmp/ 디렉토리에 업로드하세요.</p>
+                <div class="code-block">
+# WinSCP 또는 FileZilla 사용<br>
+# 로컬 파일: energy-analysis-mcp-deploy.tar.gz<br>
+# 원격 경로: /tmp/energy-analysis-mcp-deploy.tar.gz
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>4단계: 배포 명령어 실행</h3>
+                <p>서버에서 다음 명령어들을 순차적으로 실행하세요.</p>
+                <button class="download-btn" onclick="copyCommands()">
+                    📋 명령어 복사
+                </button>
+                <div class="code-block" id="deployment-commands">
+# 1. 압축 파일 확인<br>
+ls -la /tmp/energy-analysis-mcp-deploy.tar.gz<br><br>
+
+# 2. 기존 디렉토리 백업 및 새로 생성<br>
+cd /home/metal<br>
+mv energy-analysis-mcp energy-analysis-mcp-backup-$(date +%Y%m%d_%H%M%S) 2>/dev/null || true<br>
+mkdir -p energy-analysis-mcp<br>
+cd energy-analysis-mcp<br><br>
+
+# 3. 압축 해제<br>
+tar -xzf /tmp/energy-analysis-mcp-deploy.tar.gz<br>
+rm /tmp/energy-analysis-mcp-deploy.tar.gz<br><br>
+
+# 4. Python 환경 설정<br>
+python3 -m venv venv<br>
+source venv/bin/activate<br>
+pip install --upgrade pip<br>
+pip install -r requirements.txt<br><br>
+
+# 5. 기존 서비스 중지<br>
+sudo systemctl stop energy-analysis-mcp 2>/dev/null || true<br>
+sudo systemctl disable energy-analysis-mcp 2>/dev/null || true<br><br>
+
+# 6. systemd 서비스 파일 생성<br>
+sudo tee /etc/systemd/system/energy-analysis-mcp.service > /dev/null << 'SERVICE_EOF'<br>
+[Unit]<br>
+Description=Energy Analysis MCP Service<br>
+After=network.target<br><br>
+[Service]<br>
+Type=simple<br>
+User=metal<br>
+WorkingDirectory=/home/metal/energy-analysis-mcp<br>
+Environment=PATH=/home/metal/energy-analysis-mcp/venv/bin<br>
+ExecStart=/home/metal/energy-analysis-mcp/venv/bin/python -m uvicorn web_interface:web_app --host 0.0.0.0 --port 8000 --workers 4<br>
+Restart=always<br>
+RestartSec=10<br><br>
+[Install]<br>
+WantedBy=multi-user.target<br>
+SERVICE_EOF<br><br>
+
+# 7. 서비스 시작<br>
+sudo systemctl daemon-reload<br>
+sudo systemctl enable energy-analysis-mcp<br>
+sudo systemctl start energy-analysis-mcp<br><br>
+
+# 8. 서비스 상태 확인<br>
+sudo systemctl status energy-analysis-mcp --no-pager<br><br>
+
+# 9. 방화벽 설정<br>
+sudo ufw allow 8000/tcp 2>/dev/null || true<br><br>
+
+# 10. 포트 확인<br>
+netstat -tlnp | grep :8000 || ss -tlnp | grep :8000<br><br>
+
+echo "✅ 배포 완료!"<br>
+echo "🌐 서비스 URL: http://34.47.89.217:8000"<br>
+echo "📊 거래 페이지: http://34.47.89.217:8000/trading?lang=ko"<br>
+echo "📈 Statistics 페이지: http://34.47.89.217:8000/statistics?lang=ko"
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>5단계: 배포 확인</h3>
+                <p>배포 완료 후 다음 URL들에 접속하여 서비스가 정상 작동하는지 확인하세요.</p>
+                <div class="status success">
+                    <strong>🌐 접속 URL:</strong><br>
+                    • 메인 페이지: <a href="http://34.47.89.217:8000/?lang=ko" target="_blank">http://34.47.89.217:8000/?lang=ko</a><br>
+                    • 거래 페이지: <a href="http://34.47.89.217:8000/trading?lang=ko" target="_blank">http://34.47.89.217:8000/trading?lang=ko</a><br>
+                    • Statistics 페이지: <a href="http://34.47.89.217:8000/statistics?lang=ko" target="_blank">http://34.47.89.217:8000/statistics?lang=ko</a>
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3>📊 배포될 기능들</h3>
+                <div class="status info">
+                    <strong>전력/탄소 거래 플랫폼:</strong><br>
+                    • P2P 전력 거래 마켓플레이스<br>
+                    • 탄소 크레딧 거래 시스템<br>
+                    • AI 수익 최적화 엔진<br>
+                    • 실시간 거래 피드<br>
+                    • 거래 통계 및 분석<br><br>
+                    
+                    <strong>글로벌 Demo Sites:</strong><br>
+                    • Finland, Sweden, Romania, Greece<br>
+                    • 실시간 모니터링<br>
+                    • 성과 지표 분석
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function downloadFile() {
+            // 실제 파일 다운로드 구현
+            const link = document.createElement('a');
+            link.href = 'energy-analysis-mcp-deploy.tar.gz';
+            link.download = 'energy-analysis-mcp-deploy.tar.gz';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function copyCommands() {
+            const commands = document.getElementById('deployment-commands').textContent;
+            navigator.clipboard.writeText(commands).then(() => {
+                alert('명령어가 클립보드에 복사되었습니다!');
+            }).catch(() => {
+                alert('복사에 실패했습니다. 수동으로 복사해주세요.');
+            });
+        }
+    </script>
+</body>
+</html>

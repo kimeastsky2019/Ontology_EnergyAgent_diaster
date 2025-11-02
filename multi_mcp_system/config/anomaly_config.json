@@ -1,0 +1,66 @@
+{
+  "models": {
+    "prophet": {
+      "default_interval_width": 0.99,
+      "default_changepoint_range": 0.8,
+      "default_daily_seasonality": false,
+      "default_yearly_seasonality": false,
+      "default_weekly_seasonality": false,
+      "default_seasonality_mode": "multiplicative",
+      "supports_multivariate": false,
+      "handles_trend_seasonality": true,
+      "best_for": ["trend", "seasonality", "univariate"]
+    },
+    "hmm": {
+      "default_n_components": 10,
+      "default_covariance_type": "diag",
+      "default_n_iter": 1000,
+      "default_include_volume": false,
+      "supports_multivariate": true,
+      "handles_trend_seasonality": false,
+      "best_for": ["multivariate", "state_based", "no_trend"]
+    },
+    "transformer": {
+      "default_head_size": 256,
+      "default_num_heads": 4,
+      "default_ff_dim": 4,
+      "default_num_transformer_blocks": 4,
+      "default_dropout": 0.25,
+      "default_mlp_units": [128],
+      "supports_multivariate": true,
+      "handles_trend_seasonality": true,
+      "best_for": ["complex_patterns", "multivariate", "long_sequences"]
+    },
+    "temporal_fusion_transformer": {
+      "default_hidden_size": 64,
+      "default_lstm_layers": 2,
+      "default_attention_heads": 4,
+      "default_dropout": 0.1,
+      "supports_multivariate": true,
+      "handles_trend_seasonality": true,
+      "best_for": ["multivariate", "complex_temporal", "high_accuracy"]
+    }
+  },
+  "anomaly_detection": {
+    "default_threshold": 0.95,
+    "prophet_threshold": 0.1,
+    "hmm_threshold": 0.95,
+    "transformer_threshold": 0.9,
+    "temporal_fusion_threshold": 0.9
+  },
+  "model_selection": {
+    "prefer_prophet_for_trend": true,
+    "prefer_prophet_for_seasonality": true,
+    "prefer_hmm_for_multivariate": true,
+    "prefer_transformer_for_complex": true,
+    "min_samples_for_transformer": 1000,
+    "min_samples_for_temporal_fusion": 1500
+  },
+  "performance": {
+    "max_sequence_length": 1000,
+    "max_features": 20,
+    "timeout_seconds": 600,
+    "max_anomaly_detection_points": 10000
+  }
+}
+

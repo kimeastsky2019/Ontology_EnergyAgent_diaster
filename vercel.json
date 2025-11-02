@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server_cloud.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "server_cloud.py"
+    }
+  ],
+  "env": {
+    "ENVIRONMENT": "production",
+    "LOG_LEVEL": "info"
+  }
+}

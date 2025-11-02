@@ -1,0 +1,71 @@
+{
+  "models": {
+    "lstm": {
+      "default_sequence_length": 30,
+      "default_prediction_length": 1,
+      "default_lstm_units": [64, 32],
+      "default_dropout": 0.2,
+      "default_learning_rate": 0.001,
+      "default_epochs": 100,
+      "default_batch_size": 32,
+      "supports_multivariate": true,
+      "supports_multi_step": true
+    },
+    "cnn": {
+      "default_sequence_length": 30,
+      "default_prediction_length": 1,
+      "default_filters": [64, 128, 256],
+      "default_kernel_sizes": [2, 2, 2],
+      "default_dense_units": [50],
+      "default_dropout": 0.2,
+      "default_learning_rate": 0.001,
+      "default_epochs": 100,
+      "default_batch_size": 32,
+      "supports_multivariate": true,
+      "supports_multi_step": true
+    },
+    "multivariate_lstm": {
+      "default_sequence_length": 60,
+      "default_prediction_length": 7,
+      "default_lstm_units": [128, 64],
+      "default_dropout": 0.2,
+      "default_learning_rate": 0.001,
+      "default_epochs": 100,
+      "default_batch_size": 32,
+      "supports_multivariate": true,
+      "supports_multi_step": true
+    },
+    "multivariate_cnn_lstm": {
+      "default_sequence_length": 60,
+      "default_prediction_length": 7,
+      "default_filters": [64, 128],
+      "default_kernel_sizes": [2, 2],
+      "default_lstm_units": [128, 64],
+      "default_dropout": 0.2,
+      "default_learning_rate": 0.001,
+      "default_epochs": 100,
+      "default_batch_size": 32,
+      "supports_multivariate": true,
+      "supports_multi_step": true
+    }
+  },
+  "data_preprocessing": {
+    "default_scaler": "minmax",
+    "default_train_ratio": 0.8,
+    "default_val_ratio": 0.1,
+    "default_make_stationary": false
+  },
+  "model_selection": {
+    "min_samples_for_lstm": 1000,
+    "min_samples_for_cnn": 500,
+    "min_samples_for_multivariate": 1000,
+    "prefer_lstm_for_long_sequences": 20
+  },
+  "performance": {
+    "max_sequence_length": 200,
+    "max_prediction_length": 30,
+    "max_features": 10,
+    "timeout_seconds": 300
+  }
+}
+
