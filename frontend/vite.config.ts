@@ -34,6 +34,12 @@ export default defineConfig({
   preview: {
     port: 3000,
     host: '0.0.0.0',
+    allowedHosts: [
+      'damcp.gngmeta.com',
+      'localhost',
+      '127.0.0.1',
+      '.gngmeta.com', // 모든 gngmeta.com 서브도메인 허용
+    ],
   },
 })
 
