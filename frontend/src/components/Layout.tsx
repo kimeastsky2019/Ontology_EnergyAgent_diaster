@@ -36,6 +36,9 @@ function Layout() {
               <Button color="inherit" onClick={() => navigate('/assets')}>
                 자산
               </Button>
+              <Button color="inherit" onClick={() => navigate('/disaster')}>
+                재난 분석
+              </Button>
               <Button color="inherit" onClick={handleLogout}>
                 로그아웃
               </Button>
