@@ -10,7 +10,7 @@ from src.database import get_db
 from src.models.user import User
 from src.config import settings
 from src.schemas.auth import UserRegister, Token, UserResponse
-from typing import Dict
+from typing import Dict, Any
 
 router = APIRouter()
 
