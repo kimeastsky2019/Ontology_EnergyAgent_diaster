@@ -147,6 +147,7 @@ async def startup_event():
     from src.agents.demand_sector_agent import DemandSectorAgent
     from src.agents.supply_sector_agent import SupplySectorAgent
     from src.agents.weather_agent import WeatherAgent
+    from src.agents.energy_demand_agent import EnergyDemandAgent
     
     # Agents are auto-registered via BaseAgent.__init__
     logger.info("MCP agents initialized")
@@ -163,6 +164,56 @@ async def shutdown_event():
 async def root():
     """루트 페이지 - Health 페이지로 리다이렉트"""
     return RedirectResponse(url="/health?lang=ko")
+
+
+# Energy Dashboard endpoint - accessible at /api/energy-dashboard
+@app.get("/api/energy-dashboard", response_class=HTMLResponse)
+async def energy_dashboard():
+    """에너지 수요 분석 대시보드"""
+    import os
+    from pathlib import Path
+    
+    dashboard_path = Path(__file__).parent.parent / "static" / "energy_dashboard.html"
+    
+    if dashboard_path.exists():
+        with open(dashboard_path, 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
+    else:
+        return HTMLResponse(
+            content="""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Energy Dashboard - Not Found</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100vh;
+                        margin: 0;
+                    }
+                    .container {
+                        text-align: center;
+                        padding: 2rem;
+                        background: rgba(255, 255, 255, 0.1);
+                        border-radius: 20px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>⚡ Energy Demand Analysis Dashboard</h1>
+                    <p>Dashboard file not found. Please check the deployment.</p>
+                </div>
+            </body>
+            </html>
+            """,
+            status_code=404
+        )
 
 
 # Health page endpoint (from web_interface.py)
@@ -436,7 +487,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # Include routers
-from src.api.v1 import auth, assets, orchestrator, mcp, energy_dashboard, weather
+from src.api.v1 import auth, assets, orchestrator, mcp, energy_dashboard, weather, energy_demand
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(assets.router, prefix="/api/v1/assets", tags=["Assets"])
@@ -444,6 +495,7 @@ app.include_router(orchestrator.router, prefix="/api/v1/orchestrator", tags=["Or
 app.include_router(mcp.router, prefix="/api/v1/mcp", tags=["MCP"])
 app.include_router(energy_dashboard.router, prefix="/api/v1/energy", tags=["Energy Dashboard"])
 app.include_router(weather.router, prefix="/api/v1/weather", tags=["Weather"])
+app.include_router(energy_demand.router, prefix="/api/v1/energy-demand", tags=["Energy Demand"])
 
 # TODO: Add more routers as they are created
 # from src.api.v1 import users, devices, disasters

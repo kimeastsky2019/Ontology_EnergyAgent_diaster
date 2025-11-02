@@ -39,6 +39,12 @@ function Layout() {
               <Button color="inherit" onClick={() => navigate('/disaster')}>
                 재난 분석
               </Button>
+              <Button color="inherit" onClick={() => navigate('/energy-demand')}>
+                에너지 수요 분석
+              </Button>
+              <Button color="inherit" onClick={() => window.open('/api/energy-dashboard', '_blank')}>
+                대시보드
+              </Button>
               <Button color="inherit" onClick={handleLogout}>
                 로그아웃
               </Button>
