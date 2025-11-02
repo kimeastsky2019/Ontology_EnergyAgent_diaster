@@ -9,19 +9,33 @@ from src.models.user import User
 from src.api.v1.auth import get_current_user
 from src.agents.disaster_analyzer import DisasterAnalyzerAgent
 from src.agents.energy_analyzer import EnergyAnalyzerAgent
-from src.agents.data_quality_agent import DataQualityAgent
-from src.agents.demand_sector_agent import DemandSectorAgent
-from src.agents.supply_sector_agent import SupplySectorAgent
-from src.agents.weather_agent import WeatherAgent
+from src.services.mcp_service import mcp_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Initialize agents
-data_quality_agent = DataQualityAgent()
-demand_sector_agent = DemandSectorAgent()
-supply_sector_agent = SupplySectorAgent()
-weather_agent = WeatherAgent()
+
+def get_agent_by_id(agent_id: str):
+    """Get agent instance from MCP registry"""
+    from src.agents.data_quality_agent import DataQualityAgent
+    from src.agents.demand_sector_agent import DemandSectorAgent
+    from src.agents.supply_sector_agent import SupplySectorAgent
+    from src.agents.weather_agent import WeatherAgent
+    
+    # Agent instances are created on module import and auto-registered
+    # We can access them via MCP service or create new instances if needed
+    agent_map = {
+        "data-quality-agent": DataQualityAgent,
+        "demand-sector-agent": DemandSectorAgent,
+        "supply-sector-agent": SupplySectorAgent,
+        "weather-agent": WeatherAgent
+    }
+    
+    agent_class = agent_map.get(agent_id)
+    if agent_class:
+        # Create instance if needed (agents auto-register on init)
+        return agent_class()
+    return None
 
 
 @router.post("/analyze")
@@ -65,24 +79,24 @@ async def analyze_with_agent(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Analyze data using a specific agent"""
-    agents = {
-        "data-quality-agent": data_quality_agent,
-        "demand-sector-agent": demand_sector_agent,
-        "supply-sector-agent": supply_sector_agent,
-        "weather-agent": weather_agent
-    }
-    
-    agent = agents.get(agent_id)
-    if not agent:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent {agent_id} not found"
-        )
-    
+    """Analyze data using a specific agent via MCP"""
     try:
-        result = await agent.analyze(data)
-        return result
+        # Use MCP service to send request to agent
+        response = await mcp_service.send_request(
+            agent_id,
+            "analyze",
+            data
+        )
+        
+        if response.error:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=response.error.get("message", "Analysis failed")
+            )
+        
+        return response.result
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Agent analysis error: {e}", exc_info=True)
         raise HTTPException(

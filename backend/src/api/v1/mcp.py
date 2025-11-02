@@ -1,7 +1,7 @@
 """MCP API endpoints"""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from src.database import get_db
 from src.models.user import User
@@ -57,7 +57,7 @@ async def send_mcp_request(
 async def send_mcp_request_short(
     agent_id: str,
     method: str,
-    params: Dict[str, Any] = None,
+    params: Optional[Dict[str, Any]] = None,
     current_user: User = Depends(get_current_user)
 ) -> MCPResponse:
     """Send MCP request using URL parameters"""

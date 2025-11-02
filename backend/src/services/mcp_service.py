@@ -116,11 +116,11 @@ class MCPService:
                 }
             )
     
-    def broadcast_notification(
+    async def broadcast_notification(
         self,
         method: str,
         params: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, MCPResponse]:
+    ) -> Dict[str, Any]:
         """Broadcast notification to all agents"""
         results = {}
         for agent_id in self.registry.agents.keys():
@@ -128,7 +128,7 @@ class MCPService:
             if handler:
                 try:
                     if asyncio.iscoroutinefunction(handler):
-                        result = asyncio.run(handler(params or {}))
+                        result = await handler(params or {})
                     else:
                         result = handler(params or {})
                     results[agent_id] = result
