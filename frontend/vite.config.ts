@@ -40,6 +40,8 @@ export default defineConfig({
       '127.0.0.1',
       '.gngmeta.com', // 모든 gngmeta.com 서브도메인 허용
     ],
+    strictPort: false,
+    cors: true,
   },
 })
 

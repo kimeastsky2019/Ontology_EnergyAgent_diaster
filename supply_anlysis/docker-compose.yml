@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: energy-db
+    environment:
+      POSTGRES_USER: energy_user
+      POSTGRES_PASSWORD: energy_pass
+      POSTGRES_DB: energy_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U energy_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: energy-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - energy-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: energy-backend
+    environment:
+      DATABASE_URL: postgresql://energy_user:energy_pass@db:5432/energy_db
+      REDIS_URL: redis://redis:6379
+      WEATHER_API_KEY: ${WEATHER_API_KEY:-demo_key}
+      DAMCP_API_URL: https://damcp.gngmeta.com/api
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - energy-network
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # AI Agent Service
+  ai-agent:
+    build:
+      context: ./ai-agent
+      dockerfile: Dockerfile
+    container_name: energy-ai-agent
+    environment:
+      DATABASE_URL: postgresql://energy_user:energy_pass@db:5432/energy_db
+      REDIS_URL: redis://redis:6379
+      ANOMALY_THRESHOLD: 0.8
+      MODEL_PATH: /app/models
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+      - redis
+      - backend
+    networks:
+      - energy-network
+    volumes:
+      - ./ai-agent:/app
+      - ai_models:/app/models
+    command: python -m app.main
+
+  # Frontend Dashboard
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: energy-frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+      REACT_APP_AI_API_URL: http://localhost:8001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - energy-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm start
+
+networks:
+  energy-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  ai_models:

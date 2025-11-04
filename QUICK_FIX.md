@@ -98,3 +98,4 @@ sudo systemctl enable backend
 - [ ] Nginx 설정 업데이트 확인
 - [ ] 도메인 접속 테스트
 
+

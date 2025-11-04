@@ -28,27 +28,23 @@ function Layout() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Energy Orchestrator
           </Typography>
-          {user && (
-            <>
-              <Button color="inherit" onClick={() => navigate('/')}>
-                홈
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/assets')}>
-                자산
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/disaster')}>
-                재난 분석
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/energy-demand')}>
-                에너지 수요 분석
-              </Button>
-              <Button color="inherit" onClick={() => window.open('/api/energy-dashboard', '_blank')}>
-                대시보드
-              </Button>
-              <Button color="inherit" onClick={handleLogout}>
-                로그아웃
-              </Button>
-            </>
+          <Button color="inherit" onClick={() => navigate('/')}>
+            홈
+          </Button>
+          <Button color="inherit" onClick={() => navigate('/assets')}>
+            자산
+          </Button>
+          <Button color="inherit" onClick={() => navigate('/disaster')}>
+            재난 분석
+          </Button>
+          {user ? (
+            <Button color="inherit" onClick={() => navigate('/my-page')}>
+              마이페이지
+            </Button>
+          ) : (
+            <Button color="inherit" onClick={() => navigate('/login')}>
+              로그인
+            </Button>
           )}
         </Toolbar>
       </AppBar>

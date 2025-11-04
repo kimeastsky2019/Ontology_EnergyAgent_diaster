@@ -116,3 +116,4 @@ echo "  1. 프론트엔드 서버 상태 확인: curl http://127.0.0.1:3000"
 echo "  2. Nginx 테스트: curl http://127.0.0.1/disaster"
 echo "  3. 도메인 테스트: curl https://damcp.gngmeta.com/disaster"
 
+

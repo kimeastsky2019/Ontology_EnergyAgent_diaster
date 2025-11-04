@@ -148,3 +148,4 @@ const EnergyBarChart: React.FC<EnergyBarChartProps> = ({
 
 export default EnergyBarChart
 
+

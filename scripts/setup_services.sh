@@ -66,3 +66,4 @@ echo "⚠️  주의: 서비스 파일의 경로와 설정을 확인하세요"
 echo "   - frontend.service: WorkingDirectory, ExecStart 경로 확인"
 echo "   - backend.service: venv 경로 및 uvicorn 경로 확인"
 
+

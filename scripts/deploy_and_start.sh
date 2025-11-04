@@ -138,3 +138,4 @@ echo ""
 echo "서버 로그 확인:"
 echo "  ssh -i $KEY_FILE ${SERVER_USER}@${SERVER_HOST} 'tail -f /tmp/frontend.log'"
 
+

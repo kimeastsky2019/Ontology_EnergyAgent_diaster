@@ -156,3 +156,4 @@ const PowerChart: React.FC<PowerChartProps> = ({ data }) => {
 
 export default PowerChart
 
+

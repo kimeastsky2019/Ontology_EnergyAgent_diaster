@@ -45,3 +45,4 @@ bash scripts/deploy_with_pem.sh
 4. 서버 환경 설정 (Python, Node.js 설치)
 5. 백엔드/프론트엔드 의존성 설치
 
+

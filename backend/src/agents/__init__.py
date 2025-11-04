@@ -6,6 +6,7 @@ from src.agents.supply_sector_agent import SupplySectorAgent
 from src.agents.weather_agent import WeatherAgent
 from src.agents.disaster_analyzer import DisasterAnalyzerAgent
 from src.agents.energy_analyzer import EnergyAnalyzerAgent
+from src.agents.energy_demand_agent import EnergyDemandAgent
 
 __all__ = [
     "BaseAgent",
@@ -14,5 +15,6 @@ __all__ = [
     "SupplySectorAgent",
     "WeatherAgent",
     "DisasterAnalyzerAgent",
-    "EnergyAnalyzerAgent"
+    "EnergyAnalyzerAgent",
+    "EnergyDemandAgent"
 ]

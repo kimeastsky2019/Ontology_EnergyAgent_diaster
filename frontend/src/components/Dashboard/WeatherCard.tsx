@@ -161,3 +161,4 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ weather, forecast }) => {
 
 export default WeatherCard
 
+

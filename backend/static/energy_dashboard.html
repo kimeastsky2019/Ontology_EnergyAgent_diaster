@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Energy Demand Analysis AI Agent</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plot.ly; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' https://cdnjs.cloudflare.com;">
     <style>
         * {
             margin: 0;
@@ -480,6 +481,46 @@
 
     <script>
         const API_BASE_URL = '/api/v1/energy-demand';
+
+        // Load sample data on page load
+        window.addEventListener('load', function() {
+            // Check if sample data should be auto-loaded
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('sample') === 'true') {
+                loadSampleData();
+            }
+        });
+
+        // Load sample data automatically
+        async function loadSampleData() {
+            const fileInput = document.getElementById('dataFile');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const statusDiv = document.getElementById('uploadStatus');
+
+            statusDiv.innerHTML = '<div style="color: #667eea; padding: 10px; background: #e8f0fe; border-radius: 5px;">📊 샘플 데이터를 로드하고 분석합니다...</div>';
+
+            try {
+                // Create a file input with sample data
+                const response = await fetch('/api/v1/energy-demand/sample-data');
+                if (!response.ok) {
+                    throw new Error('Sample data not available');
+                }
+
+                const blob = await response.blob();
+                const file = new File([blob], 'sample_energy_data.csv', { type: 'text/csv' });
+                
+                // Set file to input
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+
+                // Auto-analyze
+                await uploadAndAnalyze();
+            } catch (error) {
+                console.log('Sample data auto-load failed, manual upload required');
+                statusDiv.innerHTML = '<div style="color: #666; padding: 10px; background: #f5f5f5; border-radius: 5px;">💡 CSV 파일을 업로드하여 분석하세요.</div>';
+            }
+        }
 
         // Upload file and analyze
         async function uploadAndAnalyze() {

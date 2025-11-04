@@ -102,3 +102,4 @@ echo "확인:"
 echo "  https://damcp.gngmeta.com/disaster"
 ENDSSH
 
+

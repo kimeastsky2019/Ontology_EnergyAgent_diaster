@@ -66,3 +66,4 @@ echo ""
 echo "⚠️  GitHub 인증이 필요할 수 있습니다."
 echo "   Personal Access Token을 사용하거나 SSH 키를 설정하세요."
 
+
